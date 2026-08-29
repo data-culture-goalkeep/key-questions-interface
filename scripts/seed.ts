@@ -695,6 +695,7 @@ async function seedProject(project: SeedProject, userIdByEmail: Map<string, stri
       project.comments.map((c) => ({
         key_question_id: kqIdByNumber.get(c.kqNumber),
         author_id: userIdByEmail.get(c.authorEmail),
+        author_email: c.authorEmail,
         comment_text: c.text,
         comment_type: c.commentType,
         status: c.status,
@@ -722,6 +723,7 @@ async function seedProject(project: SeedProject, userIdByEmail: Map<string, stri
       project.reviews.map((r) => ({
         key_question_id: kqIdByNumber.get(r.kqNumber),
         user_id: userIdByEmail.get(r.userEmail),
+        user_email: r.userEmail,
       }))
     )
     if (error) throw error

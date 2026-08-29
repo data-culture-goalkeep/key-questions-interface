@@ -35,6 +35,36 @@ export interface AreaOfEnquiry {
   sequence: number
 }
 
+export type CommentType = "definition_suggestion" | "general"
+export type CommentStatus = "open" | "resolved"
+export type RelationshipType = "informs" | "depends_on" | "related_to"
+
+export interface KeyQuestionComment {
+  id: string
+  key_question_id: string
+  author_id: string
+  author_email: string
+  comment_text: string
+  comment_type: CommentType
+  status: CommentStatus
+  created_at: string
+}
+
+export interface KeyQuestionClientReview {
+  id: string
+  key_question_id: string
+  user_id: string
+  user_email: string
+  verified_at: string
+}
+
+export interface KeyQuestionLink {
+  id: string
+  key_question_id_a: string
+  key_question_id_b: string
+  relationship_type: RelationshipType
+}
+
 export interface KeyQuestion {
   id: string
   project_id: string
@@ -50,4 +80,6 @@ export interface KeyQuestion {
   reason_for_priority: string
   sequence: number
   is_locked: boolean
+  key_question_comments: KeyQuestionComment[]
+  key_question_client_reviews: KeyQuestionClientReview[]
 }

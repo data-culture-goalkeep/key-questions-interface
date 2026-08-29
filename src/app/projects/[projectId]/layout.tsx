@@ -27,7 +27,7 @@ export default async function ProjectLayout({
   return (
     <div className="flex flex-1 flex-col">
       <header className="border-b border-border">
-        <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-1">
             <Link href="/" className="text-xs text-muted-foreground underline">
               All projects
@@ -37,19 +37,25 @@ export default async function ProjectLayout({
               <Badge variant="outline">{project.client_name}</Badge>
             </div>
           </div>
-          {userContext?.role === "facilitator" && (
-            <nav className="flex gap-4 text-sm">
+          <nav className="flex gap-4 text-sm">
+            <Link
+              href={`/projects/${projectId}/review`}
+              className="text-foreground underline-offset-4 hover:underline"
+            >
+              Review
+            </Link>
+            {userContext?.role === "facilitator" && (
               <Link
                 href={`/projects/${projectId}/manage`}
                 className="text-foreground underline-offset-4 hover:underline"
               >
                 Manage
               </Link>
-            </nav>
-          )}
+            )}
+          </nav>
         </div>
       </header>
-      <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
         {children}
       </div>
     </div>
