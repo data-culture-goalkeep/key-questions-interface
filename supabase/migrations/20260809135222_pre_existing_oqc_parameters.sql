@@ -1,0 +1,9 @@
+-- Placeholder migration for bookkeeping only.
+--
+-- This version already exists in the remote migration history table for
+-- this shared Supabase project (from earlier, unrelated experimentation
+-- that created the `public.oqc-parameters` table). It predates this repo
+-- and is not managed by the Key Questions Navigator app. This empty file
+-- exists only so `supabase migration repair` can mark it as applied
+-- locally, keeping local/remote migration history in sync without
+-- re-running or altering anything.
