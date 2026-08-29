@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx --env-file=.env.local scripts/seed.ts"
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "grant-access": "tsx --env-file=.env.local scripts/grant-client-access.ts",
+    "get-magic-link": "tsx --env-file=.env.local scripts/get-magic-link.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
