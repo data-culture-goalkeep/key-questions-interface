@@ -1,0 +1,404 @@
+"use client"
+
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import {
+  ChevronDown,
+  ChevronUp,
+  Lock,
+  LockOpen,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+import { INDICATOR_LEVELS, type AreaOfEnquiry, type KeyQuestion } from "@/lib/types"
+import {
+  createArea,
+  renameArea,
+  deleteArea,
+  moveArea,
+  createKeyQuestion,
+  updateKeyQuestion,
+  deleteKeyQuestion,
+  setKeyQuestionLocked,
+  moveKeyQuestion,
+  type KeyQuestionInput,
+} from "./actions"
+import { KqFormDialog } from "./kq-form-dialog"
+
+function indicatorLabel(value: KeyQuestion["indicator_type"]) {
+  return INDICATOR_LEVELS.find((l) => l.value === value)?.label ?? value
+}
+
+export function ManageView({
+  projectId,
+  initialAreas,
+  initialKeyQuestions,
+}: {
+  projectId: string
+  initialAreas: AreaOfEnquiry[]
+  initialKeyQuestions: KeyQuestion[]
+}) {
+  const router = useRouter()
+  const [, startTransition] = React.useTransition()
+  const [newAreaName, setNewAreaName] = React.useState("")
+
+  const kqsByArea = React.useMemo(() => {
+    const map = new Map<string, KeyQuestion[]>()
+    for (const kq of initialKeyQuestions) {
+      const list = map.get(kq.area_of_enquiry_id) ?? []
+      list.push(kq)
+      map.set(kq.area_of_enquiry_id, list)
+    }
+    return map
+  }, [initialKeyQuestions])
+
+  function run(fn: () => Promise<void>) {
+    startTransition(async () => {
+      await fn()
+      router.refresh()
+    })
+  }
+
+  async function handleAddArea() {
+    if (!newAreaName.trim()) return
+    await createArea(projectId, newAreaName.trim())
+    setNewAreaName("")
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold">Manage key questions</h2>
+        <p className="text-sm text-muted-foreground">
+          Add, edit, reorder, and lock key questions. Locking a question
+          freezes it for clients — no further comments, votes, or
+          verifications.
+        </p>
+      </div>
+
+      {initialAreas.map((area, areaIndex) => (
+        <AreaSection
+          key={area.id}
+          projectId={projectId}
+          area={area}
+          areas={initialAreas}
+          keyQuestions={kqsByArea.get(area.id) ?? []}
+          isFirst={areaIndex === 0}
+          isLast={areaIndex === initialAreas.length - 1}
+          run={run}
+        />
+      ))}
+
+      <Card>
+        <CardContent className="flex items-center gap-2 pt-4">
+          <Input
+            placeholder="New area of enquiry, e.g. Who Are We Reaching?"
+            value={newAreaName}
+            onChange={(e) => setNewAreaName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                run(handleAddArea)
+              }
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => run(handleAddArea)}
+            className="gap-1.5"
+          >
+            <Plus className="size-4" />
+            Add area
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function AreaSection({
+  projectId,
+  area,
+  areas,
+  keyQuestions,
+  isFirst,
+  isLast,
+  run,
+}: {
+  projectId: string
+  area: AreaOfEnquiry
+  areas: AreaOfEnquiry[]
+  keyQuestions: KeyQuestion[]
+  isFirst: boolean
+  isLast: boolean
+  run: (fn: () => Promise<void>) => void
+}) {
+  const [editing, setEditing] = React.useState(false)
+  const [name, setName] = React.useState(area.name)
+
+  const sorted = [...keyQuestions].sort((a, b) => a.sequence - b.sequence)
+
+  async function saveName() {
+    if (name.trim() && name !== area.name) {
+      await renameArea(projectId, area.id, name.trim())
+    }
+    setEditing(false)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between gap-2">
+          {editing ? (
+            <Input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => run(saveName)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  run(saveName)
+                }
+              }}
+              className="max-w-sm"
+            />
+          ) : (
+            <span>{area.name}</span>
+          )}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setEditing((v) => !v)}
+              aria-label="Rename area"
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={isFirst}
+              onClick={() => run(() => moveArea(projectId, area.id, "up"))}
+              aria-label="Move area up"
+            >
+              <ChevronUp className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={isLast}
+              onClick={() => run(() => moveArea(projectId, area.id, "down"))}
+              aria-label="Move area down"
+            >
+              <ChevronDown className="size-3.5" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Delete area"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete &quot;{area.name}&quot;?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This also deletes all {keyQuestions.length} key question
+                    {keyQuestions.length === 1 ? "" : "s"} in this area. This
+                    can&apos;t be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => run(() => deleteArea(projectId, area.id))}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {sorted.map((kq, kqIndex) => (
+          <KqRow
+            key={kq.id}
+            projectId={projectId}
+            areas={areas}
+            kq={kq}
+            isFirst={kqIndex === 0}
+            isLast={kqIndex === sorted.length - 1}
+            run={run}
+          />
+        ))}
+
+        <Separator />
+
+        <KqFormDialog
+          areas={areas}
+          defaultAreaId={area.id}
+          onSubmit={async (input: KeyQuestionInput) => {
+            await createKeyQuestion(projectId, input)
+          }}
+          trigger={
+            <Button variant="outline" size="sm" className="w-fit gap-1.5">
+              <Plus className="size-3.5" />
+              Add key question
+            </Button>
+          }
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
+function KqRow({
+  projectId,
+  areas,
+  kq,
+  isFirst,
+  isLast,
+  run,
+}: {
+  projectId: string
+  areas: AreaOfEnquiry[]
+  kq: KeyQuestion
+  isFirst: boolean
+  isLast: boolean
+  run: (fn: () => Promise<void>) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline" className="font-mono">
+            {kq.kq_number}
+          </Badge>
+          <Badge variant="outline">{indicatorLabel(kq.indicator_type)}</Badge>
+          <Badge
+            variant={
+              kq.priority === "high"
+                ? "destructive"
+                : kq.priority === "medium"
+                  ? "secondary"
+                  : "outline"
+            }
+          >
+            {kq.priority}
+          </Badge>
+          {kq.is_locked && (
+            <Badge variant="secondary" className="gap-1">
+              <Lock className="size-3" />
+              Locked
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm">{kq.question_text}</p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={isFirst}
+          onClick={() =>
+            run(() =>
+              moveKeyQuestion(projectId, kq.area_of_enquiry_id, kq.id, "up")
+            )
+          }
+          aria-label="Move up"
+        >
+          <ChevronUp className="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={isLast}
+          onClick={() =>
+            run(() =>
+              moveKeyQuestion(projectId, kq.area_of_enquiry_id, kq.id, "down")
+            )
+          }
+          aria-label="Move down"
+        >
+          <ChevronDown className="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() =>
+            run(() => setKeyQuestionLocked(projectId, kq.id, !kq.is_locked))
+          }
+          aria-label={kq.is_locked ? "Unlock" : "Lock"}
+        >
+          {kq.is_locked ? (
+            <Lock className="size-3.5" />
+          ) : (
+            <LockOpen className="size-3.5" />
+          )}
+        </Button>
+        <KqFormDialog
+          areas={areas}
+          keyQuestion={kq}
+          onSubmit={async (input: KeyQuestionInput) => {
+            await updateKeyQuestion(projectId, kq.id, input)
+          }}
+          trigger={
+            <Button variant="ghost" size="icon-sm" aria-label="Edit">
+              <Pencil className="size-3.5" />
+            </Button>
+          }
+        />
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Delete">
+              <Trash2 className="size-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {kq.kq_number}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This can&apos;t be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => run(() => deleteKeyQuestion(projectId, kq.id))}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
+  )
+}

@@ -642,10 +642,10 @@ async function seedProject(project: SeedProject, userIdByEmail: Map<string, stri
   const projectId = projectRow.id as string
 
   const areaIdByName = new Map<string, string>()
-  for (const area of project.areas) {
+  for (const [index, area] of project.areas.entries()) {
     const { data, error } = await admin
       .from("areas_of_enquiry")
-      .insert({ project_id: projectId, name: area.name })
+      .insert({ project_id: projectId, name: area.name, sequence: index })
       .select("id")
       .single()
     if (error) throw error

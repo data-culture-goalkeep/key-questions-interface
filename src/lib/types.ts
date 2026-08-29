@@ -1,0 +1,53 @@
+export type IndicatorType =
+  | "reach"
+  | "input"
+  | "output"
+  | "intermediate_outcome"
+  | "impact"
+
+export type Priority = "high" | "medium" | "low"
+
+export const INDICATOR_LEVELS: { value: IndicatorType; label: string }[] = [
+  { value: "reach", label: "Reach" },
+  { value: "input", label: "Input" },
+  { value: "output", label: "Output" },
+  { value: "intermediate_outcome", label: "Intermediate Outcome" },
+  { value: "impact", label: "Impact" },
+]
+
+export const PRIORITIES: { value: Priority; label: string }[] = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+]
+
+export interface Project {
+  id: string
+  name: string
+  client_name: string
+  status: "active" | "archived"
+}
+
+export interface AreaOfEnquiry {
+  id: string
+  project_id: string
+  name: string
+  sequence: number
+}
+
+export interface KeyQuestion {
+  id: string
+  project_id: string
+  area_of_enquiry_id: string
+  kq_number: string
+  question_text: string
+  indicator_type: IndicatorType
+  indicator_definition: string
+  action_text: string
+  primary_user: string
+  data_availability: string
+  priority: Priority
+  reason_for_priority: string
+  sequence: number
+  is_locked: boolean
+}

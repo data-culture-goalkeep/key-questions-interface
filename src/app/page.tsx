@@ -59,19 +59,21 @@ export default async function Home() {
 
         <div className="flex flex-col gap-2">
           {projects?.map((p) => (
-            <Card key={p.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{p.name}</span>
-                  <Badge variant={p.status === "active" ? "secondary" : "outline"}>
-                    {p.status}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                {p.client_name}
-              </CardContent>
-            </Card>
+            <Link key={p.id} href={`/projects/${p.id}`}>
+              <Card className="transition-colors hover:bg-muted/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>{p.name}</span>
+                    <Badge variant={p.status === "active" ? "secondary" : "outline"}>
+                      {p.status}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  {p.client_name}
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </div>
