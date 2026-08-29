@@ -34,7 +34,12 @@ export function SignInForm() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        // @supabase/ssr's browser client uses PKCE, so a real email-triggered
+        // link resolves to `?code=...` here — the same code-exchange route
+        // used for Google OAuth, not the fragment-based /auth/confirm page
+        // (that one only applies to implicit-flow links, e.g. admin-generated
+        // test links via scripts/get-magic-link.ts).
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
     setStatus(error ? "error" : "sent")
