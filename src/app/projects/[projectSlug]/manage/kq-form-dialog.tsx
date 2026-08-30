@@ -22,20 +22,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { INDICATOR_LEVELS, PRIORITIES, type AreaOfEnquiry, type KeyQuestion } from "@/lib/types"
+import {
+  PRIORITIES,
+  type AreaOfEnquiry,
+  type IndicatorLevel,
+  type KeyQuestion,
+} from "@/lib/types"
 import type { KeyQuestionInput } from "./actions"
 
-const emptyForm: KeyQuestionInput = {
-  areaOfEnquiryId: "",
-  kqNumber: "",
-  questionText: "",
-  indicatorType: "reach",
-  indicatorDefinition: "",
-  actionText: "",
-  primaryUser: "",
-  dataAvailability: "",
-  priority: "medium",
-  reasonForPriority: "",
+function emptyForm(defaultIndicatorLevelId: string): KeyQuestionInput {
+  return {
+    areaOfEnquiryId: "",
+    kqNumber: "",
+    questionText: "",
+    indicatorLevelId: defaultIndicatorLevelId,
+    indicatorDefinition: "",
+    actionText: "",
+    primaryUser: "",
+    dataAvailability: "",
+    priority: "medium",
+    reasonForPriority: "",
+  }
 }
 
 function toForm(kq: KeyQuestion): KeyQuestionInput {
@@ -43,7 +50,7 @@ function toForm(kq: KeyQuestion): KeyQuestionInput {
     areaOfEnquiryId: kq.area_of_enquiry_id,
     kqNumber: kq.kq_number,
     questionText: kq.question_text,
-    indicatorType: kq.indicator_type,
+    indicatorLevelId: kq.indicator_level_id,
     indicatorDefinition: kq.indicator_definition,
     actionText: kq.action_text,
     primaryUser: kq.primary_user,
@@ -55,12 +62,14 @@ function toForm(kq: KeyQuestion): KeyQuestionInput {
 
 export function KqFormDialog({
   areas,
+  indicatorLevels,
   keyQuestion,
   defaultAreaId,
   trigger,
   onSubmit,
 }: {
   areas: AreaOfEnquiry[]
+  indicatorLevels: IndicatorLevel[]
   keyQuestion?: KeyQuestion
   defaultAreaId?: string
   trigger: React.ReactNode
@@ -69,7 +78,12 @@ export function KqFormDialog({
   const [open, setOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [form, setForm] = React.useState<KeyQuestionInput>(
-    keyQuestion ? toForm(keyQuestion) : { ...emptyForm, areaOfEnquiryId: defaultAreaId ?? "" }
+    keyQuestion
+      ? toForm(keyQuestion)
+      : {
+          ...emptyForm(indicatorLevels[0]?.id ?? ""),
+          areaOfEnquiryId: defaultAreaId ?? "",
+        }
   )
 
   async function handleSubmit(e: React.FormEvent) {
@@ -145,18 +159,18 @@ export function KqFormDialog({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="indicatorType">Indicator type</Label>
+                <Label htmlFor="indicatorLevelId">Indicator type</Label>
                 <Select
-                  value={form.indicatorType}
-                  onValueChange={(v) => set("indicatorType", v as KeyQuestionInput["indicatorType"])}
+                  value={form.indicatorLevelId}
+                  onValueChange={(v) => set("indicatorLevelId", v)}
                 >
-                  <SelectTrigger id="indicatorType" className="w-full">
+                  <SelectTrigger id="indicatorLevelId" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {INDICATOR_LEVELS.map((l) => (
-                      <SelectItem key={l.value} value={l.value}>
-                        {l.label}
+                    {indicatorLevels.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.number_label}. {l.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

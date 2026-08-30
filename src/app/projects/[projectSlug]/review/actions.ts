@@ -14,8 +14,8 @@ async function requireUser() {
   return { supabase, user }
 }
 
-function revalidate(projectId: string) {
-  revalidatePath(`/projects/${projectId}/review`)
+function revalidate() {
+  revalidatePath("/projects/[projectSlug]/review", "page")
 }
 
 export async function addComment(
@@ -33,7 +33,7 @@ export async function addComment(
     comment_type: commentType,
   })
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function setCommentResolved(
@@ -47,7 +47,7 @@ export async function setCommentResolved(
     .update({ status: resolved ? "resolved" : "open" })
     .eq("id", commentId)
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function toggleVerified(
@@ -72,5 +72,5 @@ export async function toggleVerified(
     })
     if (error) throw error
   }
-  revalidate(projectId)
+  revalidate()
 }

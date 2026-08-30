@@ -27,9 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  indicatorLabel,
+  indicatorLevelLabel,
   PRIORITY_BADGE_VARIANT,
   type CommentType,
+  type IndicatorLevel,
   type KeyQuestion,
 } from "@/lib/types"
 import { addComment, setCommentResolved, toggleVerified } from "./actions"
@@ -39,6 +40,7 @@ export function KqReviewCard({
   kq,
   role,
   userId,
+  indicatorLevels,
   open,
   onOpenChange,
 }: {
@@ -46,6 +48,7 @@ export function KqReviewCard({
   kq: KeyQuestion
   role: "facilitator" | "client"
   userId: string
+  indicatorLevels: IndicatorLevel[]
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -104,7 +107,7 @@ export function KqReviewCard({
                     {kq.kq_number}
                   </Badge>
                   <Badge variant="outline">
-                    {indicatorLabel(kq.indicator_type)}
+                    {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
                   </Badge>
                   <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
                     {kq.priority} priority

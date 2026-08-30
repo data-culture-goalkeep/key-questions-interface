@@ -8,9 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  INDICATOR_LEVELS,
   PRIORITY_BADGE_VARIANT,
-  type IndicatorType,
+  type IndicatorLevel,
   type Priority,
 } from "@/lib/types"
 
@@ -23,12 +22,14 @@ export function PrioritizeView({
   keyQuestions,
   myVotes,
   allVotes,
+  indicatorLevels,
 }: {
   projectId: string
   role: "facilitator" | "client"
   keyQuestions: PrioritizeKq[]
   myVotes: VoteRow[]
   allVotes: VoteRow[]
+  indicatorLevels: IndicatorLevel[]
 }) {
   const router = useRouter()
   const [, startTransition] = React.useTransition()
@@ -54,14 +55,19 @@ export function PrioritizeView({
     return map
   }, [myVotes])
 
+  const sortedLevels = React.useMemo(
+    () => [...indicatorLevels].sort((a, b) => a.sequence - b.sequence),
+    [indicatorLevels]
+  )
+
   const kqsByLevel = React.useMemo(() => {
-    const map = new Map<IndicatorType, PrioritizeKq[]>()
-    for (const level of INDICATOR_LEVELS) map.set(level.value, [])
+    const map = new Map<string, PrioritizeKq[]>()
+    for (const level of sortedLevels) map.set(level.id, [])
     for (const kq of keyQuestions) {
-      map.get(kq.indicator_type as IndicatorType)?.push(kq)
+      map.get(kq.indicator_level_id)?.push(kq)
     }
     return map
-  }, [keyQuestions])
+  }, [keyQuestions, sortedLevels])
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,8 +81,8 @@ export function PrioritizeView({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {INDICATOR_LEVELS.map((level) => {
-        const allInLevel = kqsByLevel.get(level.value) ?? []
+      {sortedLevels.map((level) => {
+        const allInLevel = kqsByLevel.get(level.id) ?? []
         if (allInLevel.length === 0) return null
 
         const rankable =
@@ -103,9 +109,11 @@ export function PrioritizeView({
         }
 
         return (
-          <Card key={level.value}>
+          <Card key={level.id}>
             <CardHeader>
-              <CardTitle>{level.label}</CardTitle>
+              <CardTitle>
+                {level.number_label}. {level.label}
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
               {ordered.map((kq, index) => (

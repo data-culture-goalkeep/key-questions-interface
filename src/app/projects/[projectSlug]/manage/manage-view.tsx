@@ -30,9 +30,10 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import {
-  indicatorLabel,
+  indicatorLevelLabel,
   PRIORITY_BADGE_VARIANT,
   type AreaOfEnquiry,
+  type IndicatorLevel,
   type KeyQuestion,
 } from "@/lib/types"
 import {
@@ -53,10 +54,12 @@ export function ManageView({
   projectId,
   initialAreas,
   initialKeyQuestions,
+  indicatorLevels,
 }: {
   projectId: string
   initialAreas: AreaOfEnquiry[]
   initialKeyQuestions: KeyQuestion[]
+  indicatorLevels: IndicatorLevel[]
 }) {
   const router = useRouter()
   const [, startTransition] = React.useTransition()
@@ -103,6 +106,7 @@ export function ManageView({
           area={area}
           areas={initialAreas}
           keyQuestions={kqsByArea.get(area.id) ?? []}
+          indicatorLevels={indicatorLevels}
           isFirst={areaIndex === 0}
           isLast={areaIndex === initialAreas.length - 1}
           run={run}
@@ -142,6 +146,7 @@ function AreaSection({
   area,
   areas,
   keyQuestions,
+  indicatorLevels,
   isFirst,
   isLast,
   run,
@@ -150,6 +155,7 @@ function AreaSection({
   area: AreaOfEnquiry
   areas: AreaOfEnquiry[]
   keyQuestions: KeyQuestion[]
+  indicatorLevels: IndicatorLevel[]
   isFirst: boolean
   isLast: boolean
   run: (fn: () => Promise<void>) => void
@@ -253,6 +259,7 @@ function AreaSection({
             projectId={projectId}
             areas={areas}
             kq={kq}
+            indicatorLevels={indicatorLevels}
             isFirst={kqIndex === 0}
             isLast={kqIndex === sorted.length - 1}
             run={run}
@@ -263,6 +270,7 @@ function AreaSection({
 
         <KqFormDialog
           areas={areas}
+          indicatorLevels={indicatorLevels}
           defaultAreaId={area.id}
           onSubmit={async (input: KeyQuestionInput) => {
             await createKeyQuestion(projectId, input)
@@ -283,6 +291,7 @@ function KqRow({
   projectId,
   areas,
   kq,
+  indicatorLevels,
   isFirst,
   isLast,
   run,
@@ -290,6 +299,7 @@ function KqRow({
   projectId: string
   areas: AreaOfEnquiry[]
   kq: KeyQuestion
+  indicatorLevels: IndicatorLevel[]
   isFirst: boolean
   isLast: boolean
   run: (fn: () => Promise<void>) => void
@@ -301,7 +311,9 @@ function KqRow({
           <Badge variant="outline" className="font-mono">
             {kq.kq_number}
           </Badge>
-          <Badge variant="outline">{indicatorLabel(kq.indicator_type)}</Badge>
+          <Badge variant="outline">
+            {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
+          </Badge>
           <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
             {kq.priority}
           </Badge>
@@ -358,6 +370,7 @@ function KqRow({
         </Button>
         <KqFormDialog
           areas={areas}
+          indicatorLevels={indicatorLevels}
           keyQuestion={kq}
           onSubmit={async (input: KeyQuestionInput) => {
             await updateKeyQuestion(projectId, kq.id, input)

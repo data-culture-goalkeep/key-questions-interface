@@ -5,14 +5,14 @@ import { getCurrentUserContext } from "@/lib/auth"
 export default async function ProjectHomePage({
   params,
 }: {
-  params: Promise<{ projectId: string }>
+  params: Promise<{ projectSlug: string }>
 }) {
-  const { projectId } = await params
+  const { projectSlug } = await params
   const userContext = await getCurrentUserContext()
 
   if (userContext?.role === "facilitator") {
-    redirect(`/projects/${projectId}/manage`)
+    redirect(`/projects/${projectSlug}/manage`)
   }
 
-  redirect(`/projects/${projectId}/review`)
+  redirect(`/projects/${projectSlug}/review`)
 }

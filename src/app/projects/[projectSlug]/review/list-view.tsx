@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import type { AreaOfEnquiry, KeyQuestion } from "@/lib/types"
+import type { AreaOfEnquiry, IndicatorLevel, KeyQuestion } from "@/lib/types"
 import { KqReviewCard } from "./kq-review-card"
 
 export function ListView({
@@ -11,6 +11,7 @@ export function ListView({
   role,
   areas,
   keyQuestions,
+  indicatorLevels,
   selectedKqId,
   focusToken,
   onSelectKq,
@@ -20,6 +21,7 @@ export function ListView({
   role: "facilitator" | "client"
   areas: AreaOfEnquiry[]
   keyQuestions: KeyQuestion[]
+  indicatorLevels: IndicatorLevel[]
   selectedKqId: string | null
   focusToken?: number
   onSelectKq: (kqId: string | null) => void
@@ -70,6 +72,7 @@ export function ListView({
                   kq={kq}
                   role={role}
                   userId={userId}
+                  indicatorLevels={indicatorLevels}
                   open={selectedKqId === kq.id}
                   onOpenChange={(open) => onSelectKq(open ? kq.id : null)}
                 />
