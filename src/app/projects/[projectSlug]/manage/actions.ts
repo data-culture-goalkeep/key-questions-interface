@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
-import type { Priority } from "@/lib/types"
+import type { DataAvailabilityStatus, Priority } from "@/lib/types"
 
 async function requireFacilitatorClient() {
   const supabase = await createClient()
@@ -107,7 +107,8 @@ export interface KeyQuestionInput {
   indicatorDefinition: string
   actionText: string
   primaryUser: string
-  dataAvailability: string
+  dataAvailabilityStatus: DataAvailabilityStatus
+  dataAvailabilityNote: string
   priority: Priority
   reasonForPriority: string
 }
@@ -131,7 +132,8 @@ export async function createKeyQuestion(
     indicator_definition: input.indicatorDefinition,
     action_text: input.actionText,
     primary_user: input.primaryUser,
-    data_availability: input.dataAvailability,
+    data_availability_status: input.dataAvailabilityStatus,
+    data_availability_note: input.dataAvailabilityNote,
     priority: input.priority,
     reason_for_priority: input.reasonForPriority,
     sequence: count ?? 0,
@@ -156,7 +158,8 @@ export async function updateKeyQuestion(
       indicator_definition: input.indicatorDefinition,
       action_text: input.actionText,
       primary_user: input.primaryUser,
-      data_availability: input.dataAvailability,
+      data_availability_status: input.dataAvailabilityStatus,
+      data_availability_note: input.dataAvailabilityNote,
       priority: input.priority,
       reason_for_priority: input.reasonForPriority,
     })

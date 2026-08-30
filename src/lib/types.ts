@@ -29,6 +29,26 @@ export const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "low", label: "3. Low" },
 ]
 
+export type DataAvailabilityStatus =
+  | "fully_available"
+  | "partially_available"
+  | "not_available"
+
+export const DATA_AVAILABILITY_STATUSES: {
+  value: DataAvailabilityStatus
+  label: string
+}[] = [
+  { value: "fully_available", label: "1. Fully Available" },
+  { value: "partially_available", label: "2. Partially Available" },
+  { value: "not_available", label: "3. Not Available" },
+]
+
+export function dataAvailabilityLabel(value: DataAvailabilityStatus) {
+  return (
+    DATA_AVAILABILITY_STATUSES.find((s) => s.value === value)?.label ?? value
+  )
+}
+
 export function indicatorLevelLabel(
   levels: IndicatorLevel[],
   indicatorLevelId: string
@@ -107,7 +127,8 @@ export interface KeyQuestion {
   indicator_definition: string
   action_text: string
   primary_user: string
-  data_availability: string
+  data_availability_status: DataAvailabilityStatus
+  data_availability_note: string
   priority: Priority
   reason_for_priority: string
   sequence: number

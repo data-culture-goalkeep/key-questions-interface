@@ -31,6 +31,52 @@ type IndicatorType =
   | "impact"
 type Priority = "high" | "medium" | "low"
 
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+// Matches the default set every project gets (see the Phase 6 migration and
+// projects/new/actions.ts) — seed data classifies KQs against these same
+// keys via `indicatorType`.
+const SEED_INDICATOR_LEVELS: {
+  key: IndicatorType
+  label: string
+  number_label: string
+  sequence: number
+}[] = [
+  { key: "reach", label: "Reach", number_label: "1", sequence: 1 },
+  { key: "input", label: "Input", number_label: "2", sequence: 2 },
+  { key: "output", label: "Output", number_label: "3", sequence: 3 },
+  {
+    key: "intermediate_outcome",
+    label: "Intermediate Outcome",
+    number_label: "4",
+    sequence: 4,
+  },
+  { key: "impact", label: "Impact", number_label: "5", sequence: 5 },
+]
+
+type DataAvailabilityStatus =
+  | "fully_available"
+  | "partially_available"
+  | "not_available"
+
+// Same prefix classification as the Phase 7 migration, applied here since
+// seed data is still authored as one free-text sentence per KQ.
+function classifyDataAvailability(text: string): {
+  status: DataAvailabilityStatus
+  note: string
+} {
+  if (/^available$/i.test(text)) return { status: "fully_available", note: "" }
+  if (/^available/i.test(text)) return { status: "fully_available", note: text }
+  if (/^partial/i.test(text)) return { status: "partially_available", note: text }
+  return { status: "not_available", note: text }
+}
+
 interface SeedUser {
   email: string
   role: "facilitator" | "client"
@@ -635,11 +681,24 @@ async function seedProject(project: SeedProject, userIdByEmail: Map<string, stri
 
   const { data: projectRow, error: projectError } = await admin
     .from("projects")
-    .insert({ name: project.name, client_name: project.clientName })
+    .insert({
+      name: project.name,
+      client_name: project.clientName,
+      slug: slugify(project.name),
+    })
     .select("id")
     .single()
   if (projectError) throw projectError
   const projectId = projectRow.id as string
+
+  const { data: levelRows, error: levelsError } = await admin
+    .from("indicator_levels")
+    .insert(SEED_INDICATOR_LEVELS.map((l) => ({ ...l, project_id: projectId })))
+    .select("id, key")
+  if (levelsError) throw levelsError
+  const indicatorLevelIdByKey = new Map<string, string>(
+    levelRows.map((l) => [l.key as string, l.id as string])
+  )
 
   const areaIdByName = new Map<string, string>()
   for (const [index, area] of project.areas.entries()) {
@@ -654,6 +713,7 @@ async function seedProject(project: SeedProject, userIdByEmail: Map<string, stri
 
   const kqIdByNumber = new Map<string, string>()
   for (const [index, kq] of project.keyQuestions.entries()) {
+    const { status, note } = classifyDataAvailability(kq.dataAvailability)
     const { data, error } = await admin
       .from("key_questions")
       .insert({
@@ -661,11 +721,12 @@ async function seedProject(project: SeedProject, userIdByEmail: Map<string, stri
         area_of_enquiry_id: areaIdByName.get(kq.areaName),
         kq_number: kq.kqNumber,
         question_text: kq.questionText,
-        indicator_type: kq.indicatorType,
+        indicator_level_id: indicatorLevelIdByKey.get(kq.indicatorType),
         indicator_definition: kq.indicatorDefinition,
         action_text: kq.actionText,
         primary_user: kq.primaryUser,
-        data_availability: kq.dataAvailability,
+        data_availability_status: status,
+        data_availability_note: note,
         priority: kq.priority,
         reason_for_priority: kq.reasonForPriority,
         is_locked: kq.isLocked ?? false,

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { CheckCircle2, ChevronDown, Lock, MessageSquare } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  dataAvailabilityLabel,
   indicatorLevelLabel,
   priorityLabel,
   PRIORITY_BADGE_VARIANT,
@@ -166,8 +168,12 @@ export function KqReviewCard({
                 <dt className="text-xs font-medium text-muted-foreground">
                   Indicator Definition
                 </dt>
-                <dd className="text-sm whitespace-pre-line">
-                  {kq.indicator_definition || "—"}
+                <dd className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                  {kq.indicator_definition ? (
+                    <ReactMarkdown>{kq.indicator_definition}</ReactMarkdown>
+                  ) : (
+                    "—"
+                  )}
                 </dd>
               </div>
               <div className="flex flex-col gap-1">
@@ -191,7 +197,13 @@ export function KqReviewCard({
                   Data Availability
                 </dt>
                 <dd className="text-sm whitespace-pre-line">
-                  {kq.data_availability || "—"}
+                  {dataAvailabilityLabel(kq.data_availability_status)}
+                  {kq.data_availability_status !== "fully_available" &&
+                    kq.data_availability_note && (
+                      <span className="block text-muted-foreground">
+                        {kq.data_availability_note}
+                      </span>
+                    )}
                 </dd>
               </div>
               <div className="flex flex-col gap-1 sm:col-span-2">
