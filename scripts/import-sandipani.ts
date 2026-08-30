@@ -36,6 +36,41 @@ type IndicatorType =
   | "intermediate_outcome"
   | "impact"
 
+// Matches the default set every project gets (see the Phase 6 migration and
+// projects/new/actions.ts).
+const INDICATOR_LEVELS: {
+  key: IndicatorType
+  label: string
+  number_label: string
+  sequence: number
+}[] = [
+  { key: "reach", label: "Reach", number_label: "1", sequence: 1 },
+  { key: "input", label: "Input", number_label: "2", sequence: 2 },
+  { key: "output", label: "Output", number_label: "3", sequence: 3 },
+  {
+    key: "intermediate_outcome",
+    label: "Intermediate Outcome",
+    number_label: "4",
+    sequence: 4,
+  },
+  { key: "impact", label: "Impact", number_label: "5", sequence: 5 },
+]
+
+type DataAvailabilityStatus =
+  | "fully_available"
+  | "partially_available"
+  | "not_available"
+
+function classifyDataAvailability(text: string): {
+  status: DataAvailabilityStatus
+  note: string
+} {
+  if (/^available$/i.test(text)) return { status: "fully_available", note: "" }
+  if (/^available/i.test(text)) return { status: "fully_available", note: text }
+  if (/^partial/i.test(text)) return { status: "partially_available", note: text }
+  return { status: "not_available", note: text }
+}
+
 interface Kq {
   kqNumber: string
   areaName: string
@@ -365,11 +400,24 @@ async function main() {
   console.log("Creating project: Sandipani Vidyalayas (Peepul)")
   const { data: project, error: projectError } = await admin
     .from("projects")
-    .insert({ name: "Sandipani Vidyalayas", client_name: "Peepul" })
+    .insert({
+      name: "Sandipani Vidyalayas",
+      client_name: "Peepul",
+      slug: "sandipani-vidyalayas",
+    })
     .select("id")
     .single()
   if (projectError) throw projectError
   const projectId = project.id as string
+
+  const { data: levelRows, error: levelsError } = await admin
+    .from("indicator_levels")
+    .insert(INDICATOR_LEVELS.map((l) => ({ ...l, project_id: projectId })))
+    .select("id, key")
+  if (levelsError) throw levelsError
+  const indicatorLevelIdByKey = new Map<string, string>(
+    levelRows.map((l) => [l.key as string, l.id as string])
+  )
 
   const areaIdByName = new Map<string, string>()
   for (const [index, name] of AREAS.entries()) {
@@ -384,16 +432,18 @@ async function main() {
   console.log(`  ${AREAS.length} areas of enquiry`)
 
   for (const [index, kq] of KQS.entries()) {
+    const { status, note } = classifyDataAvailability(kq.dataAvailability)
     const { error } = await admin.from("key_questions").insert({
       project_id: projectId,
       area_of_enquiry_id: areaIdByName.get(kq.areaName),
       kq_number: kq.kqNumber,
       question_text: kq.questionText,
-      indicator_type: kq.indicatorType,
+      indicator_level_id: indicatorLevelIdByKey.get(kq.indicatorType),
       indicator_definition: kq.indicatorDefinition,
       action_text: kq.actionText,
       primary_user: kq.primaryUser,
-      data_availability: kq.dataAvailability,
+      data_availability_status: status,
+      data_availability_note: note,
       priority: kq.priority,
       reason_for_priority: kq.reasonForPriority,
       sequence: index,

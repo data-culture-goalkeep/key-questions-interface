@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import ReactMarkdown from "react-markdown"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  DATA_AVAILABILITY_STATUSES,
   PRIORITIES,
   type AreaOfEnquiry,
   type IndicatorLevel,
@@ -39,7 +41,8 @@ function emptyForm(defaultIndicatorLevelId: string): KeyQuestionInput {
     indicatorDefinition: "",
     actionText: "",
     primaryUser: "",
-    dataAvailability: "",
+    dataAvailabilityStatus: "fully_available",
+    dataAvailabilityNote: "",
     priority: "medium",
     reasonForPriority: "",
   }
@@ -54,7 +57,8 @@ function toForm(kq: KeyQuestion): KeyQuestionInput {
     indicatorDefinition: kq.indicator_definition,
     actionText: kq.action_text,
     primaryUser: kq.primary_user,
-    dataAvailability: kq.data_availability,
+    dataAvailabilityStatus: kq.data_availability_status,
+    dataAvailabilityNote: kq.data_availability_note,
     priority: kq.priority,
     reasonForPriority: kq.reason_for_priority,
   }
@@ -100,6 +104,9 @@ export function KqFormDialog({
   function set<K extends keyof KeyQuestionInput>(key: K, value: KeyQuestionInput[K]) {
     setForm((f) => ({ ...f, [key]: value }))
   }
+
+  const [previewDefinition, setPreviewDefinition] = React.useState(false)
+  const needsAvailabilityNote = form.dataAvailabilityStatus !== "fully_available"
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -197,12 +204,35 @@ export function KqFormDialog({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="indicatorDefinition">Indicator definition</Label>
-              <Textarea
-                id="indicatorDefinition"
-                value={form.indicatorDefinition}
-                onChange={(e) => set("indicatorDefinition", e.target.value)}
-              />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="indicatorDefinition">
+                  Indicator definition
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setPreviewDefinition((v) => !v)}
+                >
+                  {previewDefinition ? "Edit" : "Preview"}
+                </Button>
+              </div>
+              {previewDefinition ? (
+                <div className="min-h-24 rounded-md border border-input px-3 py-2 text-sm prose prose-sm dark:prose-invert max-w-none">
+                  {form.indicatorDefinition ? (
+                    <ReactMarkdown>{form.indicatorDefinition}</ReactMarkdown>
+                  ) : (
+                    <span className="text-muted-foreground">Nothing to preview yet.</span>
+                  )}
+                </div>
+              ) : (
+                <Textarea
+                  id="indicatorDefinition"
+                  value={form.indicatorDefinition}
+                  onChange={(e) => set("indicatorDefinition", e.target.value)}
+                  placeholder="Markdown supported — lists, bold, links…"
+                />
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -225,15 +255,44 @@ export function KqFormDialog({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="dataAvailability">Data availability</Label>
-                <Input
-                  id="dataAvailability"
-                  value={form.dataAvailability}
-                  onChange={(e) => set("dataAvailability", e.target.value)}
-                  placeholder="Available"
-                />
+                <Label htmlFor="dataAvailabilityStatus">Data availability</Label>
+                <Select
+                  value={form.dataAvailabilityStatus}
+                  onValueChange={(v) => {
+                    set(
+                      "dataAvailabilityStatus",
+                      v as KeyQuestionInput["dataAvailabilityStatus"]
+                    )
+                    if (v === "fully_available") set("dataAvailabilityNote", "")
+                  }}
+                >
+                  <SelectTrigger id="dataAvailabilityStatus" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATA_AVAILABILITY_STATUSES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
+            {needsAvailabilityNote && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="dataAvailabilityNote">
+                  Data availability note
+                </Label>
+                <Textarea
+                  id="dataAvailabilityNote"
+                  value={form.dataAvailabilityNote}
+                  onChange={(e) => set("dataAvailabilityNote", e.target.value)}
+                  placeholder="What's missing or delayed, and by how much?"
+                />
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="reasonForPriority">Reason for priority</Label>
