@@ -29,7 +29,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-import { INDICATOR_LEVELS, type AreaOfEnquiry, type KeyQuestion } from "@/lib/types"
+import {
+  indicatorLabel,
+  PRIORITY_BADGE_VARIANT,
+  type AreaOfEnquiry,
+  type KeyQuestion,
+} from "@/lib/types"
 import {
   createArea,
   renameArea,
@@ -43,10 +48,6 @@ import {
   type KeyQuestionInput,
 } from "./actions"
 import { KqFormDialog } from "./kq-form-dialog"
-
-function indicatorLabel(value: KeyQuestion["indicator_type"]) {
-  return INDICATOR_LEVELS.find((l) => l.value === value)?.label ?? value
-}
 
 export function ManageView({
   projectId,
@@ -301,15 +302,7 @@ function KqRow({
             {kq.kq_number}
           </Badge>
           <Badge variant="outline">{indicatorLabel(kq.indicator_type)}</Badge>
-          <Badge
-            variant={
-              kq.priority === "high"
-                ? "destructive"
-                : kq.priority === "medium"
-                  ? "secondary"
-                  : "outline"
-            }
-          >
+          <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
             {kq.priority}
           </Badge>
           {kq.is_locked && (

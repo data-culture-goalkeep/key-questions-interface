@@ -40,7 +40,7 @@ export default async function ReviewPage({
   return (
     <ReviewShell
       projectId={projectId}
-      userId={userContext?.role ? userContext.userId : ""}
+      userId={userContext?.userId ?? ""}
       role={userContext?.role ?? "client"}
       areas={(areas ?? []) as AreaOfEnquiry[]}
       keyQuestions={(keyQuestions ?? []) as unknown as KeyQuestion[]}

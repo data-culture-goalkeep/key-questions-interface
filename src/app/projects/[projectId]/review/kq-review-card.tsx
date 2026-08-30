@@ -26,12 +26,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { INDICATOR_LEVELS, type CommentType, type KeyQuestion } from "@/lib/types"
+import {
+  indicatorLabel,
+  PRIORITY_BADGE_VARIANT,
+  type CommentType,
+  type KeyQuestion,
+} from "@/lib/types"
 import { addComment, setCommentResolved, toggleVerified } from "./actions"
-
-function indicatorLabel(value: KeyQuestion["indicator_type"]) {
-  return INDICATOR_LEVELS.find((l) => l.value === value)?.label ?? value
-}
 
 export function KqReviewCard({
   projectId,
@@ -51,21 +52,36 @@ export function KqReviewCard({
   const [pending, startTransition] = React.useTransition()
   const [commentText, setCommentText] = React.useState("")
   const [commentType, setCommentType] = React.useState<CommentType>("general")
+  const [actionError, setActionError] = React.useState<string | null>(null)
 
-  const comments = [...kq.key_question_comments].sort(
+  function runAction(fn: () => Promise<void>) {
+    setActionError(null)
+    startTransition(async () => {
+      try {
+        await fn()
+      } catch {
+        setActionError(
+          "That didn't go through — this key question may have just been locked. Refresh and try again."
+        )
+      }
+    })
+  }
+
+  const comments = [...(kq.key_question_comments ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   )
   const openComments = comments.filter((c) => c.status === "open").length
-  const isVerified = kq.key_question_client_reviews.some(
+  const isVerified = (kq.key_question_client_reviews ?? []).some(
     (r) => r.user_id === userId
   )
-  const verifiedCount = kq.key_question_client_reviews.length
+  const verifiedCount = (kq.key_question_client_reviews ?? []).length
 
   function submitComment(e: React.FormEvent) {
     e.preventDefault()
     if (!commentText.trim()) return
-    startTransition(async () => {
-      await addComment(projectId, kq.id, commentText.trim(), commentType)
+    const text = commentText.trim()
+    runAction(async () => {
+      await addComment(projectId, kq.id, text, commentType)
       setCommentText("")
     })
   }
@@ -90,15 +106,7 @@ export function KqReviewCard({
                   <Badge variant="outline">
                     {indicatorLabel(kq.indicator_type)}
                   </Badge>
-                  <Badge
-                    variant={
-                      kq.priority === "high"
-                        ? "destructive"
-                        : kq.priority === "medium"
-                          ? "secondary"
-                          : "outline"
-                    }
-                  >
+                  <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
                     {kq.priority} priority
                   </Badge>
                   {kq.is_locked && (
@@ -188,7 +196,9 @@ export function KqReviewCard({
                   {comments.map((c) => (
                     <div key={c.id} className="flex flex-col gap-0.5 text-sm">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{c.author_email}</span>
+                        <span className="font-medium">
+                          {c.author_email || "Unknown"}
+                        </span>
                         <Badge variant="outline" className="text-[10px]">
                           {c.comment_type === "definition_suggestion"
                             ? "definition suggestion"
@@ -210,7 +220,7 @@ export function KqReviewCard({
                             size="xs"
                             disabled={pending}
                             onClick={() =>
-                              startTransition(() =>
+                              runAction(() =>
                                 setCommentResolved(
                                   projectId,
                                   c.id,
@@ -232,7 +242,11 @@ export function KqReviewCard({
 
             <Separator />
 
-            {kq.is_locked ? (
+            {actionError && (
+              <p className="text-xs text-destructive">{actionError}</p>
+            )}
+
+            {kq.is_locked && role === "client" ? (
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="size-3.5" />
                 This key question is locked — facilitation is complete and
@@ -240,6 +254,13 @@ export function KqReviewCard({
               </p>
             ) : (
               <div className="flex flex-col gap-3">
+                {kq.is_locked && (
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Lock className="size-3.5" />
+                    Locked — clients can no longer comment or verify, but you
+                    can as a facilitator.
+                  </p>
+                )}
                 <form onSubmit={submitComment} className="flex flex-col gap-2">
                   <Textarea
                     placeholder="Suggest a tighter definition, or leave a general comment…"
@@ -277,7 +298,7 @@ export function KqReviewCard({
                           size="sm"
                           disabled={pending}
                           onClick={() =>
-                            startTransition(() =>
+                            runAction(() =>
                               toggleVerified(projectId, kq.id, isVerified)
                             )
                           }

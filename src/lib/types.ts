@@ -21,6 +21,19 @@ export const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "low", label: "Low" },
 ]
 
+export function indicatorLabel(value: IndicatorType) {
+  return INDICATOR_LEVELS.find((l) => l.value === value)?.label ?? value
+}
+
+export const PRIORITY_BADGE_VARIANT: Record<
+  Priority,
+  "destructive" | "secondary" | "outline"
+> = {
+  high: "destructive",
+  medium: "secondary",
+  low: "outline",
+}
+
 export interface Project {
   id: string
   name: string
@@ -80,6 +93,8 @@ export interface KeyQuestion {
   reason_for_priority: string
   sequence: number
   is_locked: boolean
-  key_question_comments: KeyQuestionComment[]
-  key_question_client_reviews: KeyQuestionClientReview[]
+  // Only present when the query joins them (review/page.tsx) — Manage
+  // mode's query doesn't need them, so treat as absent there.
+  key_question_comments?: KeyQuestionComment[]
+  key_question_client_reviews?: KeyQuestionClientReview[]
 }
