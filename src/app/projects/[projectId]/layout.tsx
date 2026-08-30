@@ -44,6 +44,12 @@ export default async function ProjectLayout({
             >
               Review
             </Link>
+            <Link
+              href={`/projects/${projectId}/prioritize`}
+              className="text-foreground underline-offset-4 hover:underline"
+            >
+              Prioritize
+            </Link>
             {userContext?.role === "facilitator" && (
               <Link
                 href={`/projects/${projectId}/manage`}
