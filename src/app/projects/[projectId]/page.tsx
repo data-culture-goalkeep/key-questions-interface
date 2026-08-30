@@ -14,9 +14,5 @@ export default async function ProjectHomePage({
     redirect(`/projects/${projectId}/manage`)
   }
 
-  return (
-    <p className="text-sm text-muted-foreground">
-      Review mode isn&apos;t built yet — check back soon.
-    </p>
-  )
+  redirect(`/projects/${projectId}/review`)
 }
