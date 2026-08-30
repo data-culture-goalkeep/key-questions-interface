@@ -25,9 +25,14 @@ export function ReviewShell({
 }) {
   const [activeTab, setActiveTab] = React.useState("list")
   const [selectedKqId, setSelectedKqId] = React.useState<string | null>(null)
+  // Bumped on every map-node click, even re-clicking the already-selected
+  // node, so ListView's scroll-into-view effect (keyed on selectedKqId
+  // alone) can't miss a re-click that leaves selectedKqId unchanged.
+  const [focusToken, setFocusToken] = React.useState(0)
 
   function selectAndShowInList(kqId: string) {
     setSelectedKqId(kqId)
+    setFocusToken((t) => t + 1)
     setActiveTab("list")
   }
 
@@ -55,6 +60,7 @@ export function ReviewShell({
             areas={areas}
             keyQuestions={keyQuestions}
             selectedKqId={selectedKqId}
+            focusToken={focusToken}
             onSelectKq={setSelectedKqId}
           />
         </TabsContent>

@@ -12,6 +12,7 @@ export function ListView({
   areas,
   keyQuestions,
   selectedKqId,
+  focusToken,
   onSelectKq,
 }: {
   projectId: string
@@ -20,13 +21,17 @@ export function ListView({
   areas: AreaOfEnquiry[]
   keyQuestions: KeyQuestion[]
   selectedKqId: string | null
+  focusToken?: number
   onSelectKq: (kqId: string | null) => void
 }) {
   React.useEffect(() => {
     if (!selectedKqId) return
     const el = document.getElementById(`kq-${selectedKqId}`)
     el?.scrollIntoView({ behavior: "smooth", block: "center" })
-  }, [selectedKqId])
+    // focusToken changes on every map-node click, including re-clicking the
+    // already-selected node, so this re-scrolls even when selectedKqId
+    // itself didn't change.
+  }, [selectedKqId, focusToken])
 
   const kqsByArea = React.useMemo(() => {
     const map = new Map<string, KeyQuestion[]>()
