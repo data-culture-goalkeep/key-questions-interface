@@ -1,3 +1,8 @@
+"use client"
+
+import Link from "next/link"
+
+import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +16,8 @@ import {
   INDICATOR_LEVELS,
   type Priority,
 } from "@/lib/dummy-data"
+
+import { FontToggle } from "./font-toggle"
 
 const SWATCHES: { token: string; label: string }[] = [
   { token: "background", label: "Background" },
@@ -175,35 +182,43 @@ export default function StyleGuidePage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6">
       <div className="flex flex-col gap-1.5">
+        <Link href="/" className="text-xs text-muted-foreground underline">
+          ← Back to app
+        </Link>
         <h1 className="text-2xl font-semibold">Style Guide — 3 Directions</h1>
         <p className="text-sm text-muted-foreground">
           Same components and dummy content, three visual directions. Pick
-          one (or mix) before real screens get built.
+          one (or mix) before real screens get built. The live app currently
+          ships the Bold &amp; Structured direction.
         </p>
       </div>
 
-      <Tabs defaultValue="clinical">
-        <TabsList>
-          <TabsTrigger value="clinical">Clean &amp; Clinical</TabsTrigger>
-          <TabsTrigger value="warm">Warm &amp; Approachable</TabsTrigger>
-          <TabsTrigger value="bold">Bold &amp; Structured</TabsTrigger>
-        </TabsList>
-        <TabsContent value="clinical">
-          <div className="theme-clinical">
-            <ThemeShowcase />
-          </div>
-        </TabsContent>
-        <TabsContent value="warm">
-          <div className="theme-warm">
-            <ThemeShowcase />
-          </div>
-        </TabsContent>
-        <TabsContent value="bold">
-          <div className="theme-bold">
-            <ThemeShowcase />
-          </div>
-        </TabsContent>
-      </Tabs>
+      <FontToggle>
+        {(fontClassName) => (
+          <Tabs defaultValue="clinical">
+            <TabsList>
+              <TabsTrigger value="clinical">Clean &amp; Clinical</TabsTrigger>
+              <TabsTrigger value="warm">Warm &amp; Approachable</TabsTrigger>
+              <TabsTrigger value="bold">Bold &amp; Structured</TabsTrigger>
+            </TabsList>
+            <TabsContent value="clinical">
+              <div className={cn("theme-clinical", fontClassName)}>
+                <ThemeShowcase />
+              </div>
+            </TabsContent>
+            <TabsContent value="warm">
+              <div className={cn("theme-warm", fontClassName)}>
+                <ThemeShowcase />
+              </div>
+            </TabsContent>
+            <TabsContent value="bold">
+              <div className={cn("theme-bold", fontClassName)}>
+                <ThemeShowcase />
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
+      </FontToggle>
     </main>
   )
 }
