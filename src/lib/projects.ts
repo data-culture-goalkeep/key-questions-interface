@@ -10,7 +10,7 @@ export async function getProjectBySlug(slug: string): Promise<Project> {
   const { data: project } = await supabase
     .from("projects")
     .select(
-      "id, slug, name, client_name, status, logo_url, prioritization_methodology"
+      "id, slug, name, client_name, status, logo_url, prioritization_methodology, mode"
     )
     .eq("slug", slug)
     .single()

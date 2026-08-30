@@ -33,6 +33,7 @@ import {
   type IndicatorLevel,
   type PrioritizationMethodology,
   type Project,
+  type ProjectMode,
 } from "@/lib/types"
 
 import {
@@ -40,6 +41,7 @@ import {
   deleteIndicatorLevel,
   moveIndicatorLevel,
   setProjectLogo,
+  setProjectMode,
   updateIndicatorLevel,
   updateProjectDetails,
 } from "./actions"
@@ -79,6 +81,7 @@ export function ConfigureView({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
+      <ProjectModeCard project={project} run={run} />
       <ProjectDetailsCard project={project} run={run} />
       <IndicatorLevelsCard
         projectId={project.id}
@@ -87,6 +90,46 @@ export function ConfigureView({
       />
       <LogoCard project={project} run={run} />
     </div>
+  )
+}
+
+function ProjectModeCard({
+  project,
+  run,
+}: {
+  project: Project
+  run: (fn: () => Promise<void>) => void
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Project mode</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">
+          A label shown to everyone on this project — it doesn&apos;t change
+          who can do what. Switch to Prioritization once refinement is done;
+          only locked key questions become rankable either way.
+        </p>
+        <div className="flex w-fit overflow-hidden rounded-md border border-input">
+          {(["review", "prioritization"] as ProjectMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              disabled={project.mode === mode}
+              onClick={() => run(() => setProjectMode(project.id, mode))}
+              className={
+                project.mode === mode
+                  ? "bg-foreground px-3 py-1.5 text-sm text-background"
+                  : "px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
+              }
+            >
+              {mode === "review" ? "Review" : "Prioritization"}
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

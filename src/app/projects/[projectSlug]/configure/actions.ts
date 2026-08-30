@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { slugify } from "@/lib/slug"
-import type { PrioritizationMethodology } from "@/lib/types"
+import type { PrioritizationMethodology, ProjectMode } from "@/lib/types"
 
 async function requireFacilitatorClient() {
   const supabase = await createClient()
@@ -39,6 +39,16 @@ export async function updateProjectDetails(
       client_name: input.clientName,
       prioritization_methodology: input.prioritizationMethodology,
     })
+    .eq("id", projectId)
+  if (error) throw error
+  revalidate()
+}
+
+export async function setProjectMode(projectId: string, mode: ProjectMode) {
+  const supabase = await requireFacilitatorClient()
+  const { error } = await supabase
+    .from("projects")
+    .update({ mode })
     .eq("id", projectId)
   if (error) throw error
   revalidate()
