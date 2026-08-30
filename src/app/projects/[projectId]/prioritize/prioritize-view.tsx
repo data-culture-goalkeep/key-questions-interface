@@ -7,8 +7,10 @@ import { ChevronDown, ChevronUp, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 import {
   INDICATOR_LEVELS,
+  priorityLabel,
   PRIORITY_BADGE_VARIANT,
   type IndicatorType,
   type Priority,
@@ -111,7 +113,10 @@ export function PrioritizeView({
               {ordered.map((kq, index) => (
                 <div
                   key={kq.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-border p-3"
+                  className={cn(
+                    "flex items-start justify-between gap-3 rounded-lg border border-border p-3",
+                    kq.is_locked && "border-muted-foreground/40"
+                  )}
                 >
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 w-5 shrink-0 text-sm font-medium text-muted-foreground">
@@ -119,7 +124,10 @@ export function PrioritizeView({
                     </span>
                     <div className="flex flex-col gap-1.5">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant="outline" className="font-mono">
+                        <Badge
+                          variant={kq.is_locked ? "secondary" : "outline"}
+                          className="font-mono"
+                        >
                           {kq.kq_number}
                         </Badge>
                         <Badge
@@ -127,7 +135,7 @@ export function PrioritizeView({
                             PRIORITY_BADGE_VARIANT[kq.priority as Priority]
                           }
                         >
-                          {kq.priority}
+                          {priorityLabel(kq.priority as Priority)}
                         </Badge>
                         {kq.is_locked && (
                           <Badge variant="secondary" className="gap-1">

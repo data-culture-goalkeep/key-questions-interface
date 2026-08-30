@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select"
 import {
   indicatorLabel,
+  priorityLabel,
   PRIORITY_BADGE_VARIANT,
   type CommentType,
   type KeyQuestion,
@@ -91,7 +92,8 @@ export function KqReviewCard({
       id={`kq-${kq.id}`}
       className={cn(
         "ring-border/60 scroll-mt-24",
-        open && "ring-2 ring-ring"
+        open && "ring-2 ring-ring",
+        kq.is_locked && "border-muted-foreground/40"
       )}
     >
       <Collapsible open={open} onOpenChange={onOpenChange}>
@@ -100,14 +102,17 @@ export function KqReviewCard({
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-col gap-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="font-mono">
+                  <Badge
+                    variant={kq.is_locked ? "secondary" : "outline"}
+                    className="font-mono"
+                  >
                     {kq.kq_number}
                   </Badge>
                   <Badge variant="outline">
                     {indicatorLabel(kq.indicator_type)}
                   </Badge>
                   <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
-                    {kq.priority} priority
+                    {priorityLabel(kq.priority)}
                   </Badge>
                   {kq.is_locked && (
                     <Badge variant="secondary" className="gap-1">

@@ -175,11 +175,15 @@ export function MapView({
                     onClick={() => onSelectKq(kq.id)}
                     className={cn(
                       "flex flex-col gap-1 rounded-lg border border-border bg-card p-2.5 text-left text-xs shadow-sm transition-colors hover:bg-muted/50",
+                      kq.is_locked && "border-muted-foreground/40",
                       selectedKqId === kq.id && "ring-2 ring-ring"
                     )}
                   >
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className="font-mono text-[10px]">
+                      <Badge
+                        variant={kq.is_locked ? "secondary" : "outline"}
+                        className="font-mono text-[10px]"
+                      >
                         {kq.kq_number}
                       </Badge>
                       {kq.is_locked && <Lock className="size-3 text-muted-foreground" />}
