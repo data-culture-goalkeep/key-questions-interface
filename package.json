@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "grant-access": "tsx --env-file=.env.local scripts/grant-client-access.ts",
-    "get-magic-link": "tsx --env-file=.env.local scripts/get-magic-link.ts"
+    "get-magic-link": "tsx --env-file=.env.local scripts/get-magic-link.ts",
+    "import:sandipani": "tsx --env-file=.env.local scripts/import-sandipani.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
