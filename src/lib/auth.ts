@@ -4,9 +4,16 @@ import { createClient } from "@/lib/supabase/server"
 
 const FACILITATOR_DOMAIN = "@goalkeep.net"
 
+interface BaseUserContext {
+  email: string
+  userId: string
+  avatarUrl: string | null
+  fullName: string | null
+}
+
 export type UserContext =
-  | { role: "facilitator"; email: string; userId: string }
-  | { role: "client"; email: string; userId: string }
+  | ({ role: "facilitator" } & BaseUserContext)
+  | ({ role: "client" } & BaseUserContext)
   | null
 
 export async function getCurrentUserContext(): Promise<UserContext> {
@@ -21,5 +28,11 @@ export async function getCurrentUserContext(): Promise<UserContext> {
     ? "facilitator"
     : "client"
 
-  return { role, email: user.email, userId: user.id }
+  return {
+    role,
+    email: user.email,
+    userId: user.id,
+    avatarUrl: (user.user_metadata?.avatar_url as string | undefined) ?? null,
+    fullName: (user.user_metadata?.full_name as string | undefined) ?? null,
+  }
 }

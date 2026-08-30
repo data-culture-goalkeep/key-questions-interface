@@ -3,6 +3,7 @@ import Link from "next/link"
 import { getCurrentUserContext } from "@/lib/auth"
 import { getProjectBySlug } from "@/lib/projects"
 import { Badge } from "@/components/ui/badge"
+import { ProfileButton } from "@/components/profile-button"
 
 export default async function ProjectLayout({
   children,
@@ -67,6 +68,7 @@ export default async function ProjectLayout({
                 </>
               )}
             </nav>
+            {userContext && <ProfileButton userContext={userContext} />}
           </div>
         </div>
       </header>
