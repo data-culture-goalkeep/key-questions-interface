@@ -1,28 +1,44 @@
-export type IndicatorType =
-  | "reach"
-  | "input"
-  | "output"
-  | "intermediate_outcome"
-  | "impact"
-
 export type Priority = "high" | "medium" | "low"
 
-export const INDICATOR_LEVELS: { value: IndicatorType; label: string }[] = [
-  { value: "reach", label: "Reach" },
-  { value: "input", label: "Input" },
-  { value: "output", label: "Output" },
-  { value: "intermediate_outcome", label: "Intermediate Outcome" },
-  { value: "impact", label: "Impact" },
+export type PrioritizationMethodology = "ordering" | "selection_n" | "points"
+
+export const PRIORITIZATION_METHODOLOGIES: {
+  value: PrioritizationMethodology
+  label: string
+  available: boolean
+}[] = [
+  { value: "ordering", label: "Ordering", available: true },
+  { value: "selection_n", label: "Selection from N", available: false },
+  { value: "points", label: "Points", available: false },
 ]
+
+// Indicator levels are configured per project (a project can drop levels
+// like Reach, or split Outcomes into 4A/4B) — see kq_navigator.indicator_levels.
+export interface IndicatorLevel {
+  id: string
+  project_id: string
+  key: string
+  label: string
+  number_label: string
+  sequence: number
+}
 
 export const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
+  { value: "high", label: "1. High" },
+  { value: "medium", label: "2. Medium" },
+  { value: "low", label: "3. Low" },
 ]
 
-export function indicatorLabel(value: IndicatorType) {
-  return INDICATOR_LEVELS.find((l) => l.value === value)?.label ?? value
+export function indicatorLevelLabel(
+  levels: IndicatorLevel[],
+  indicatorLevelId: string
+) {
+  const level = levels.find((l) => l.id === indicatorLevelId)
+  return level ? `${level.number_label}. ${level.label}` : indicatorLevelId
+}
+
+export function priorityLabel(value: Priority) {
+  return PRIORITIES.find((p) => p.value === value)?.label ?? value
 }
 
 export const PRIORITY_BADGE_VARIANT: Record<
@@ -36,9 +52,12 @@ export const PRIORITY_BADGE_VARIANT: Record<
 
 export interface Project {
   id: string
+  slug: string
   name: string
   client_name: string
   status: "active" | "archived"
+  logo_url: string | null
+  prioritization_methodology: PrioritizationMethodology
 }
 
 export interface AreaOfEnquiry {
@@ -84,7 +103,7 @@ export interface KeyQuestion {
   area_of_enquiry_id: string
   kq_number: string
   question_text: string
-  indicator_type: IndicatorType
+  indicator_level_id: string
   indicator_definition: string
   action_text: string
   primary_user: string

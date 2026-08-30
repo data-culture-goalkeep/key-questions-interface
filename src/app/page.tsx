@@ -12,7 +12,7 @@ export default async function Home() {
 
   const { data: projects, error } = await supabase
     .from("projects")
-    .select("id, name, client_name, status")
+    .select("id, slug, name, client_name, status")
     .order("name")
 
   return (
@@ -37,11 +37,20 @@ export default async function Home() {
       </div>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-muted-foreground">
-          {userContext?.role === "facilitator"
-            ? "All projects"
-            : "Your project"}
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            {userContext?.role === "facilitator"
+              ? "All projects"
+              : "Your project"}
+          </h2>
+          {userContext?.role === "facilitator" && (
+            <Link href="/projects/new">
+              <Button type="button" variant="outline" size="sm">
+                New project
+              </Button>
+            </Link>
+          )}
+        </div>
 
         {error && (
           <p className="text-sm text-destructive">
@@ -59,7 +68,7 @@ export default async function Home() {
 
         <div className="flex flex-col gap-2">
           {projects?.map((p) => (
-            <Link key={p.id} href={`/projects/${p.id}`}>
+            <Link key={p.id} href={`/projects/${p.slug}`}>
               <Card className="transition-colors hover:bg-muted/50">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
