@@ -37,6 +37,7 @@ function emptyForm(defaultIndicatorLevelId: string): KeyQuestionInput {
     areaOfEnquiryId: "",
     kqNumber: "",
     questionText: "",
+    shortName: "",
     indicatorLevelId: defaultIndicatorLevelId,
     indicatorDefinition: "",
     actionText: "",
@@ -53,6 +54,7 @@ function toForm(kq: KeyQuestion): KeyQuestionInput {
     areaOfEnquiryId: kq.area_of_enquiry_id,
     kqNumber: kq.kq_number,
     questionText: kq.question_text,
+    shortName: kq.short_name,
     indicatorLevelId: kq.indicator_level_id,
     indicatorDefinition: kq.indicator_definition,
     actionText: kq.action_text,
@@ -162,6 +164,20 @@ export function KqFormDialog({
                 value={form.questionText}
                 onChange={(e) => set("questionText", e.target.value)}
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="shortName">Short name</Label>
+              <Input
+                id="shortName"
+                value={form.shortName}
+                onChange={(e) => set("shortName", e.target.value)}
+                placeholder="Schools covered"
+              />
+              <p className="text-xs text-muted-foreground">
+                A few words for the Map view node — falls back to the key
+                question text if left blank.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

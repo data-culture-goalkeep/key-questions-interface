@@ -103,6 +103,7 @@ export interface KeyQuestionInput {
   areaOfEnquiryId: string
   kqNumber: string
   questionText: string
+  shortName: string
   indicatorLevelId: string
   indicatorDefinition: string
   actionText: string
@@ -128,6 +129,7 @@ export async function createKeyQuestion(
     area_of_enquiry_id: input.areaOfEnquiryId,
     kq_number: input.kqNumber,
     question_text: input.questionText,
+    short_name: input.shortName,
     indicator_level_id: input.indicatorLevelId,
     indicator_definition: input.indicatorDefinition,
     action_text: input.actionText,
@@ -154,6 +156,7 @@ export async function updateKeyQuestion(
       area_of_enquiry_id: input.areaOfEnquiryId,
       kq_number: input.kqNumber,
       question_text: input.questionText,
+      short_name: input.shortName,
       indicator_level_id: input.indicatorLevelId,
       indicator_definition: input.indicatorDefinition,
       action_text: input.actionText,

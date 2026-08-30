@@ -123,6 +123,7 @@ export interface KeyQuestion {
   area_of_enquiry_id: string
   kq_number: string
   question_text: string
+  short_name: string
   indicator_level_id: string
   indicator_definition: string
   action_text: string
