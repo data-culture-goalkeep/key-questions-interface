@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentUserContext } from "@/lib/auth"
+import { getProjectBySlug } from "@/lib/projects"
+import type { IndicatorLevel } from "@/lib/types"
 
 import { PrioritizeView } from "./prioritize-view"
 
@@ -7,7 +9,7 @@ export interface PrioritizeKq {
   id: string
   kq_number: string
   question_text: string
-  indicator_type: string
+  indicator_level_id: string
   priority: string
   is_locked: boolean
 }
@@ -21,18 +23,29 @@ export interface VoteRow {
 export default async function PrioritizePage({
   params,
 }: {
-  params: Promise<{ projectId: string }>
+  params: Promise<{ projectSlug: string }>
 }) {
-  const { projectId } = await params
+  const { projectSlug } = await params
+  const project = await getProjectBySlug(projectSlug)
   const userContext = await getCurrentUserContext()
   const role = userContext?.role ?? "client"
   const userId = userContext?.userId ?? ""
   const supabase = await createClient()
 
-  const { data: keyQuestions } = await supabase
-    .from("key_questions")
-    .select("id, kq_number, question_text, indicator_type, priority, is_locked")
-    .eq("project_id", projectId)
+  const [{ data: keyQuestions }, { data: indicatorLevels }] =
+    await Promise.all([
+      supabase
+        .from("key_questions")
+        .select(
+          "id, kq_number, question_text, indicator_level_id, priority, is_locked"
+        )
+        .eq("project_id", project.id),
+      supabase
+        .from("indicator_levels")
+        .select("id, project_id, key, label, number_label, sequence")
+        .eq("project_id", project.id)
+        .order("sequence"),
+    ])
 
   const kqIds = (keyQuestions ?? []).map((k) => k.id)
 
@@ -54,11 +67,12 @@ export default async function PrioritizePage({
 
   return (
     <PrioritizeView
-      projectId={projectId}
+      projectId={project.id}
       role={role}
       keyQuestions={(keyQuestions ?? []) as PrioritizeKq[]}
       myVotes={(myVotes ?? []) as VoteRow[]}
       allVotes={(allVotes ?? []) as VoteRow[]}
+      indicatorLevels={(indicatorLevels ?? []) as IndicatorLevel[]}
     />
   )
 }

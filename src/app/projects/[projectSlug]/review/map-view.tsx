@@ -6,19 +6,14 @@ import { Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import {
-  INDICATOR_LEVELS,
-  type IndicatorType,
+  type IndicatorLevel,
   type KeyQuestion,
   type KeyQuestionLink,
 } from "@/lib/types"
 
-const CHART_BY_INDICATOR: Record<IndicatorType, 1 | 2 | 3 | 4 | 5> = {
-  reach: 1,
-  input: 2,
-  output: 3,
-  intermediate_outcome: 4,
-  impact: 5,
-}
+// Cycles through the theme's 5 chart colors regardless of how many levels
+// a project has configured.
+const CHART_COLOR_COUNT = 5
 
 const LINE_STYLE_BY_RELATIONSHIP: Record<
   KeyQuestionLink["relationship_type"],
@@ -42,11 +37,13 @@ interface LineCoords {
 export function MapView({
   keyQuestions,
   links,
+  indicatorLevels,
   selectedKqId,
   onSelectKq,
 }: {
   keyQuestions: KeyQuestion[]
   links: KeyQuestionLink[]
+  indicatorLevels: IndicatorLevel[]
   selectedKqId: string | null
   onSelectKq: (kqId: string) => void
 }) {
@@ -54,20 +51,25 @@ export function MapView({
   const nodeRefs = React.useRef(new Map<string, HTMLButtonElement>())
   const [lines, setLines] = React.useState<LineCoords[]>([])
 
+  const sortedLevels = React.useMemo(
+    () => [...indicatorLevels].sort((a, b) => a.sequence - b.sequence),
+    [indicatorLevels]
+  )
+
   const kqsByLevel = React.useMemo(() => {
-    const map = new Map<IndicatorType, KeyQuestion[]>()
-    for (const level of INDICATOR_LEVELS) map.set(level.value, [])
+    const map = new Map<string, KeyQuestion[]>()
+    for (const level of sortedLevels) map.set(level.id, [])
     for (const kq of keyQuestions) {
-      map.get(kq.indicator_type)?.push(kq)
+      map.get(kq.indicator_level_id)?.push(kq)
     }
     // `sequence` only orders KQs within their own area of enquiry, which
-    // is meaningless once grouped by indicator_type (cuts across areas).
+    // is meaningless once grouped by indicator level (cuts across areas).
     // kq_number is stable and comparable across areas.
     for (const list of map.values()) {
       list.sort((a, b) => a.kq_number.localeCompare(b.kq_number))
     }
     return map
-  }, [keyQuestions])
+  }, [keyQuestions, sortedLevels])
 
   const recomputeLines = React.useCallback(() => {
     const container = containerRef.current
@@ -126,7 +128,11 @@ export function MapView({
         {/* containerRef's own box must span the full scrollable content
             width (not just the visible viewport), since the SVG overlay
             sizes itself to this element and clips anything outside it. */}
-        <div ref={containerRef} className="relative min-w-[900px]">
+        <div
+          ref={containerRef}
+          className="relative"
+          style={{ minWidth: `${sortedLevels.length * 180}px` }}
+        >
           <svg className="pointer-events-none absolute inset-0 h-full w-full">
             {lines.map((line) => (
               <line
@@ -149,22 +155,27 @@ export function MapView({
             ))}
           </svg>
 
-          <div className="relative grid grid-cols-5 gap-4">
-          {INDICATOR_LEVELS.map((level) => (
-            <div key={level.value} className="flex flex-col gap-2">
+          <div
+            className="relative grid gap-4"
+            style={{
+              gridTemplateColumns: `repeat(${sortedLevels.length}, minmax(0, 1fr))`,
+            }}
+          >
+          {sortedLevels.map((level, levelIndex) => (
+            <div key={level.id} className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5 pb-1">
                 <span
                   className="size-2 rounded-full"
                   style={{
-                    backgroundColor: `var(--chart-${CHART_BY_INDICATOR[level.value]})`,
+                    backgroundColor: `var(--chart-${(levelIndex % CHART_COLOR_COUNT) + 1})`,
                   }}
                 />
                 <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  {level.label}
+                  {level.number_label}. {level.label}
                 </h3>
               </div>
               <div className="flex flex-col gap-3">
-                {(kqsByLevel.get(level.value) ?? []).map((kq) => (
+                {(kqsByLevel.get(level.id) ?? []).map((kq) => (
                   <button
                     key={kq.id}
                     ref={(el) => {

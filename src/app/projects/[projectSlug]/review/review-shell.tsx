@@ -3,7 +3,12 @@
 import * as React from "react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { AreaOfEnquiry, KeyQuestion, KeyQuestionLink } from "@/lib/types"
+import type {
+  AreaOfEnquiry,
+  IndicatorLevel,
+  KeyQuestion,
+  KeyQuestionLink,
+} from "@/lib/types"
 
 import { ListView } from "./list-view"
 import { MapView } from "./map-view"
@@ -15,6 +20,7 @@ export function ReviewShell({
   areas,
   keyQuestions,
   links,
+  indicatorLevels,
 }: {
   projectId: string
   userId: string
@@ -22,6 +28,7 @@ export function ReviewShell({
   areas: AreaOfEnquiry[]
   keyQuestions: KeyQuestion[]
   links: KeyQuestionLink[]
+  indicatorLevels: IndicatorLevel[]
 }) {
   const [activeTab, setActiveTab] = React.useState("list")
   const [selectedKqId, setSelectedKqId] = React.useState<string | null>(null)
@@ -59,6 +66,7 @@ export function ReviewShell({
             role={role}
             areas={areas}
             keyQuestions={keyQuestions}
+            indicatorLevels={indicatorLevels}
             selectedKqId={selectedKqId}
             focusToken={focusToken}
             onSelectKq={setSelectedKqId}
@@ -69,6 +77,7 @@ export function ReviewShell({
           <MapView
             keyQuestions={keyQuestions}
             links={links}
+            indicatorLevels={indicatorLevels}
             selectedKqId={selectedKqId}
             onSelectKq={selectAndShowInList}
           />

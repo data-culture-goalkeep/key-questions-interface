@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
-import type { IndicatorType, Priority } from "@/lib/types"
+import type { Priority } from "@/lib/types"
 
 async function requireFacilitatorClient() {
   const supabase = await createClient()
@@ -16,8 +16,13 @@ async function requireFacilitatorClient() {
   return supabase
 }
 
-function revalidate(projectId: string) {
-  revalidatePath(`/projects/${projectId}/manage`)
+// projectId here is the real database id (resolved server-side from the
+// slug before it reaches these actions) — but the URL itself is keyed by
+// slug, so revalidatePath needs the route's dynamic-segment *pattern*
+// (which revalidates every matching URL) rather than a literal path built
+// from the id.
+function revalidate() {
+  revalidatePath("/projects/[projectSlug]/manage", "page")
 }
 
 // --- Areas of enquiry -------------------------------------------------
@@ -33,7 +38,7 @@ export async function createArea(projectId: string, name: string) {
     .from("areas_of_enquiry")
     .insert({ project_id: projectId, name, sequence: count ?? 0 })
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function renameArea(
@@ -47,7 +52,7 @@ export async function renameArea(
     .update({ name })
     .eq("id", areaId)
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function deleteArea(projectId: string, areaId: string) {
@@ -57,7 +62,7 @@ export async function deleteArea(projectId: string, areaId: string) {
     .delete()
     .eq("id", areaId)
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function moveArea(
@@ -89,7 +94,7 @@ export async function moveArea(
       .update({ sequence: a.sequence })
       .eq("id", b.id),
   ])
-  revalidate(projectId)
+  revalidate()
 }
 
 // --- Key questions ------------------------------------------------------
@@ -98,7 +103,7 @@ export interface KeyQuestionInput {
   areaOfEnquiryId: string
   kqNumber: string
   questionText: string
-  indicatorType: IndicatorType
+  indicatorLevelId: string
   indicatorDefinition: string
   actionText: string
   primaryUser: string
@@ -122,7 +127,7 @@ export async function createKeyQuestion(
     area_of_enquiry_id: input.areaOfEnquiryId,
     kq_number: input.kqNumber,
     question_text: input.questionText,
-    indicator_type: input.indicatorType,
+    indicator_level_id: input.indicatorLevelId,
     indicator_definition: input.indicatorDefinition,
     action_text: input.actionText,
     primary_user: input.primaryUser,
@@ -132,7 +137,7 @@ export async function createKeyQuestion(
     sequence: count ?? 0,
   })
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function updateKeyQuestion(
@@ -147,7 +152,7 @@ export async function updateKeyQuestion(
       area_of_enquiry_id: input.areaOfEnquiryId,
       kq_number: input.kqNumber,
       question_text: input.questionText,
-      indicator_type: input.indicatorType,
+      indicator_level_id: input.indicatorLevelId,
       indicator_definition: input.indicatorDefinition,
       action_text: input.actionText,
       primary_user: input.primaryUser,
@@ -157,7 +162,7 @@ export async function updateKeyQuestion(
     })
     .eq("id", kqId)
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function deleteKeyQuestion(projectId: string, kqId: string) {
@@ -167,7 +172,7 @@ export async function deleteKeyQuestion(projectId: string, kqId: string) {
     .delete()
     .eq("id", kqId)
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function setKeyQuestionLocked(
@@ -181,7 +186,7 @@ export async function setKeyQuestionLocked(
     .update({ is_locked: isLocked })
     .eq("id", kqId)
   if (error) throw error
-  revalidate(projectId)
+  revalidate()
 }
 
 export async function moveKeyQuestion(
@@ -208,5 +213,5 @@ export async function moveKeyQuestion(
     supabase.from("key_questions").update({ sequence: b.sequence }).eq("id", a.id),
     supabase.from("key_questions").update({ sequence: a.sequence }).eq("id", b.id),
   ])
-  revalidate(projectId)
+  revalidate()
 }

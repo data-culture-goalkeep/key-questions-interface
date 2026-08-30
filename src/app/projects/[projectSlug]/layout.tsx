@@ -1,8 +1,7 @@
 import Link from "next/link"
-import { notFound } from "next/navigation"
 
-import { createClient } from "@/lib/supabase/server"
 import { getCurrentUserContext } from "@/lib/auth"
+import { getProjectBySlug } from "@/lib/projects"
 import { Badge } from "@/components/ui/badge"
 import { ProfileButton } from "@/components/profile-button"
 
@@ -11,19 +10,11 @@ export default async function ProjectLayout({
   params,
 }: {
   children: React.ReactNode
-  params: Promise<{ projectId: string }>
+  params: Promise<{ projectSlug: string }>
 }) {
-  const { projectId } = await params
+  const { projectSlug } = await params
   const userContext = await getCurrentUserContext()
-  const supabase = await createClient()
-
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name, client_name, status")
-    .eq("id", projectId)
-    .single()
-
-  if (!project) notFound()
+  const project = await getProjectBySlug(projectSlug)
 
   return (
     <div className="flex flex-1 flex-col">
@@ -34,6 +25,14 @@ export default async function ProjectLayout({
               All projects
             </Link>
             <div className="flex items-center gap-2">
+              {project.logo_url && (
+                // eslint-disable-next-line @next/next/no-img-element -- logo comes from Supabase Storage, arbitrary per-project host, not worth Next/Image config for one small badge-sized image
+                <img
+                  src={project.logo_url}
+                  alt=""
+                  className="size-6 rounded object-contain"
+                />
+              )}
               <h1 className="text-lg font-semibold">{project.name}</h1>
               <Badge variant="outline">{project.client_name}</Badge>
             </div>
@@ -41,24 +40,32 @@ export default async function ProjectLayout({
           <div className="flex items-center gap-4">
             <nav className="flex gap-4 text-sm">
               <Link
-                href={`/projects/${projectId}/review`}
+                href={`/projects/${projectSlug}/review`}
                 className="text-foreground underline-offset-4 hover:underline"
               >
                 Review
               </Link>
               <Link
-                href={`/projects/${projectId}/prioritize`}
+                href={`/projects/${projectSlug}/prioritize`}
                 className="text-foreground underline-offset-4 hover:underline"
               >
                 Prioritize
               </Link>
               {userContext?.role === "facilitator" && (
-                <Link
-                  href={`/projects/${projectId}/manage`}
-                  className="text-foreground underline-offset-4 hover:underline"
-                >
-                  Manage
-                </Link>
+                <>
+                  <Link
+                    href={`/projects/${projectSlug}/manage`}
+                    className="text-foreground underline-offset-4 hover:underline"
+                  >
+                    Manage
+                  </Link>
+                  <Link
+                    href={`/projects/${projectSlug}/configure`}
+                    className="text-foreground underline-offset-4 hover:underline"
+                  >
+                    Configure
+                  </Link>
+                </>
               )}
             </nav>
             {userContext && <ProfileButton userContext={userContext} />}

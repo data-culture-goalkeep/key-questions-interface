@@ -29,5 +29,5 @@ export async function setRanking(
     .upsert(rows, { onConflict: "key_question_id,voter_id" })
   if (error) throw error
 
-  revalidatePath(`/projects/${projectId}/prioritize`)
+  revalidatePath("/projects/[projectSlug]/prioritize", "page")
 }
