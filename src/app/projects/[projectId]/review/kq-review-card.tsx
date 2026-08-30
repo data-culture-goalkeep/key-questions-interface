@@ -158,31 +158,41 @@ export function KqReviewCard({
                 <dt className="text-xs font-medium text-muted-foreground">
                   Indicator Definition
                 </dt>
-                <dd className="text-sm">{kq.indicator_definition || "—"}</dd>
+                <dd className="text-sm whitespace-pre-line">
+                  {kq.indicator_definition || "—"}
+                </dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium text-muted-foreground">
                   Action
                 </dt>
-                <dd className="text-sm">{kq.action_text || "—"}</dd>
+                <dd className="text-sm whitespace-pre-line">
+                  {kq.action_text || "—"}
+                </dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium text-muted-foreground">
                   Primary User
                 </dt>
-                <dd className="text-sm">{kq.primary_user || "—"}</dd>
+                <dd className="text-sm whitespace-pre-line">
+                  {kq.primary_user || "—"}
+                </dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium text-muted-foreground">
                   Data Availability
                 </dt>
-                <dd className="text-sm">{kq.data_availability || "—"}</dd>
+                <dd className="text-sm whitespace-pre-line">
+                  {kq.data_availability || "—"}
+                </dd>
               </div>
               <div className="flex flex-col gap-1 sm:col-span-2">
                 <dt className="text-xs font-medium text-muted-foreground">
                   Reason for Priority
                 </dt>
-                <dd className="text-sm">{kq.reason_for_priority || "—"}</dd>
+                <dd className="text-sm whitespace-pre-line">
+                  {kq.reason_for_priority || "—"}
+                </dd>
               </div>
             </dl>
 
