@@ -29,8 +29,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+import { cn } from "@/lib/utils"
 import {
   indicatorLabel,
+  priorityLabel,
   PRIORITY_BADGE_VARIANT,
   type AreaOfEnquiry,
   type KeyQuestion,
@@ -295,15 +297,23 @@ function KqRow({
   run: (fn: () => Promise<void>) => void
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-start sm:justify-between">
+    <div
+      className={cn(
+        "flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-start sm:justify-between",
+        kq.is_locked && "border-muted-foreground/40"
+      )}
+    >
       <div className="flex flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className="font-mono">
+          <Badge
+            variant={kq.is_locked ? "secondary" : "outline"}
+            className="font-mono"
+          >
             {kq.kq_number}
           </Badge>
           <Badge variant="outline">{indicatorLabel(kq.indicator_type)}</Badge>
           <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
-            {kq.priority}
+            {priorityLabel(kq.priority)}
           </Badge>
           {kq.is_locked && (
             <Badge variant="secondary" className="gap-1">

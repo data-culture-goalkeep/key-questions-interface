@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentUserContext } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
+import { ProfileButton } from "@/components/profile-button"
 
 export default async function ProjectLayout({
   children,
@@ -37,28 +38,31 @@ export default async function ProjectLayout({
               <Badge variant="outline">{project.client_name}</Badge>
             </div>
           </div>
-          <nav className="flex gap-4 text-sm">
-            <Link
-              href={`/projects/${projectId}/review`}
-              className="text-foreground underline-offset-4 hover:underline"
-            >
-              Review
-            </Link>
-            <Link
-              href={`/projects/${projectId}/prioritize`}
-              className="text-foreground underline-offset-4 hover:underline"
-            >
-              Prioritize
-            </Link>
-            {userContext?.role === "facilitator" && (
+          <div className="flex items-center gap-4">
+            <nav className="flex gap-4 text-sm">
               <Link
-                href={`/projects/${projectId}/manage`}
+                href={`/projects/${projectId}/review`}
                 className="text-foreground underline-offset-4 hover:underline"
               >
-                Manage
+                Review
               </Link>
-            )}
-          </nav>
+              <Link
+                href={`/projects/${projectId}/prioritize`}
+                className="text-foreground underline-offset-4 hover:underline"
+              >
+                Prioritize
+              </Link>
+              {userContext?.role === "facilitator" && (
+                <Link
+                  href={`/projects/${projectId}/manage`}
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  Manage
+                </Link>
+              )}
+            </nav>
+            {userContext && <ProfileButton userContext={userContext} />}
+          </div>
         </div>
       </header>
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">

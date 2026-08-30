@@ -16,13 +16,17 @@ export const INDICATOR_LEVELS: { value: IndicatorType; label: string }[] = [
 ]
 
 export const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
+  { value: "high", label: "1. High" },
+  { value: "medium", label: "2. Medium" },
+  { value: "low", label: "3. Low" },
 ]
 
 export function indicatorLabel(value: IndicatorType) {
   return INDICATOR_LEVELS.find((l) => l.value === value)?.label ?? value
+}
+
+export function priorityLabel(value: Priority) {
+  return PRIORITIES.find((p) => p.value === value)?.label ?? value
 }
 
 export const PRIORITY_BADGE_VARIANT: Record<
