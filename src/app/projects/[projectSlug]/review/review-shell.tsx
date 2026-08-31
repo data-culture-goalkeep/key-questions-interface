@@ -13,7 +13,11 @@ import type {
 import { KqDetailPanel } from "./kq-detail-panel"
 import { ListView } from "./list-view"
 import { MapView } from "./map-view"
-import { ReviewSidebar, type ReviewFilters } from "./review-sidebar"
+import {
+  EMPTY_REVIEW_FILTERS,
+  ReviewSidebar,
+  type ReviewFilters,
+} from "./review-sidebar"
 
 export function ReviewShell({
   projectId,
@@ -44,18 +48,17 @@ export function ReviewShell({
   // didn't change in that moment.
   const [focusToken, setFocusToken] = React.useState(0)
 
-  const [filters, setFilters] = React.useState<ReviewFilters>({
-    levelIds: new Set(),
-    priorities: new Set(),
-    lockFilter: "all",
-  })
+  const [filters, setFilters] = React.useState<ReviewFilters>(
+    EMPTY_REVIEW_FILTERS
+  )
 
   const filteredKeyQuestions = React.useMemo(() => {
     return keyQuestions.filter((kq) => {
-      if (filters.levelIds.size > 0 && !filters.levelIds.has(kq.indicator_level_id)) {
+      if (filters.levelId && kq.indicator_level_id !== filters.levelId) {
         return false
       }
-      if (filters.priorities.size > 0 && !filters.priorities.has(kq.priority)) {
+      if (filters.priority && kq.priority !== filters.priority) return false
+      if (filters.areaId && kq.area_of_enquiry_id !== filters.areaId) {
         return false
       }
       if (filters.lockFilter === "locked" && !kq.is_locked) return false
@@ -67,16 +70,6 @@ export function ReviewShell({
   function selectFromMap(kqId: string | null) {
     setSelectedKqId(kqId)
     setFocusToken((t) => t + 1)
-  }
-
-  function jumpToArea(areaId: string) {
-    setActiveTab("list")
-    // Wait for the List tab's content to mount before scrolling to it.
-    requestAnimationFrame(() => {
-      document
-        .getElementById(`area-${areaId}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" })
-    })
   }
 
   const detailKq = detailPanelKqId
@@ -99,7 +92,6 @@ export function ReviewShell({
           indicatorLevels={indicatorLevels}
           filters={filters}
           onFiltersChange={setFilters}
-          onJumpToArea={jumpToArea}
         />
 
         <div className="min-w-0 flex-1">

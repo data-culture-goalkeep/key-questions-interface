@@ -74,6 +74,11 @@ export function ListView({
             className="flex scroll-mt-24 flex-col gap-3"
           >
             <h3 className="font-heading text-base font-semibold">
+              {area.area_number && (
+                <span className="mr-2 font-mono text-sm text-muted-foreground">
+                  {area.area_number}
+                </span>
+              )}
               {area.name}
             </h3>
             <div className="flex flex-col gap-3">

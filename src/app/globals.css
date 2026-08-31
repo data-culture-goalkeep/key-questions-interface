@@ -51,10 +51,12 @@
 
 :root {
   /* Live defaults match the style guide's "Bold & Structured" direction
-     (see .theme-bold below, kept as its own class so the style guide can
-     still show it side-by-side with the other two directions). */
-  --font-sans: var(--font-geist-sans);
-  --font-heading: var(--font-space-grotesk);
+     for color/radius (see .theme-bold below, kept as its own class so the
+     style guide can still show it side-by-side with the other two
+     directions) — font is Questrial, chosen from the style guide's font
+     toggle rather than Bold's original Geist/Space Grotesk pairing. */
+  --font-sans: var(--font-questrial);
+  --font-heading: var(--font-questrial);
   --background: oklch(0.97 0 0);
   --foreground: oklch(0.15 0 0);
   --card: oklch(1 0 0);

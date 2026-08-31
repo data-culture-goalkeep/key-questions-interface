@@ -26,7 +26,7 @@ export default async function ManagePage({
     await Promise.all([
       supabase
         .from("areas_of_enquiry")
-        .select("id, project_id, name, sequence")
+        .select("id, project_id, name, area_number, sequence")
         .eq("project_id", project.id)
         .order("sequence"),
       supabase

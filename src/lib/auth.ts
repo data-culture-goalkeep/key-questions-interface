@@ -9,6 +9,8 @@ interface BaseUserContext {
   userId: string
   avatarUrl: string | null
   fullName: string | null
+  // Unix seconds the current session expires at, or null if unavailable.
+  expiresAt: number | null
 }
 
 export type UserContext =
@@ -28,11 +30,19 @@ export async function getCurrentUserContext(): Promise<UserContext> {
     ? "facilitator"
     : "client"
 
+  // getSession() reads the session straight from cookies (no network
+  // round-trip) — only used here for its expires_at timestamp, not as the
+  // source of truth for identity, which stays getUser() above.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
   return {
     role,
     email: user.email,
     userId: user.id,
     avatarUrl: (user.user_metadata?.avatar_url as string | undefined) ?? null,
     fullName: (user.user_metadata?.full_name as string | undefined) ?? null,
+    expiresAt: session?.expires_at ?? null,
   }
 }

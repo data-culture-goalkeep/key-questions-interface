@@ -42,18 +42,22 @@ export default async function ProjectLayout({
           </div>
           <div className="flex items-center gap-4">
             <nav className="flex gap-4 text-sm">
-              <Link
-                href={`/projects/${projectSlug}/review`}
-                className="text-foreground underline-offset-4 hover:underline"
-              >
-                Review
-              </Link>
-              <Link
-                href={`/projects/${projectSlug}/prioritize`}
-                className="text-foreground underline-offset-4 hover:underline"
-              >
-                Prioritize
-              </Link>
+              {project.mode === "review" && (
+                <Link
+                  href={`/projects/${projectSlug}/review`}
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  Review
+                </Link>
+              )}
+              {project.mode === "prioritization" && (
+                <Link
+                  href={`/projects/${projectSlug}/prioritize`}
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  Prioritize
+                </Link>
+              )}
               {userContext?.role === "facilitator" && (
                 <>
                   <Link

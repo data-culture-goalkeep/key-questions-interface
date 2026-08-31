@@ -87,6 +87,7 @@ export interface AreaOfEnquiry {
   id: string
   project_id: string
   name: string
+  area_number: string
   sequence: number
 }
 

@@ -27,16 +27,23 @@ function revalidate() {
 
 // --- Areas of enquiry -------------------------------------------------
 
-export async function createArea(projectId: string, name: string) {
+export async function createArea(
+  projectId: string,
+  name: string,
+  areaNumber: string
+) {
   const supabase = await requireFacilitatorClient()
   const { count } = await supabase
     .from("areas_of_enquiry")
     .select("id", { count: "exact", head: true })
     .eq("project_id", projectId)
 
-  const { error } = await supabase
-    .from("areas_of_enquiry")
-    .insert({ project_id: projectId, name, sequence: count ?? 0 })
+  const { error } = await supabase.from("areas_of_enquiry").insert({
+    project_id: projectId,
+    name,
+    area_number: areaNumber,
+    sequence: count ?? 0,
+  })
   if (error) throw error
   revalidate()
 }
@@ -44,12 +51,13 @@ export async function createArea(projectId: string, name: string) {
 export async function renameArea(
   projectId: string,
   areaId: string,
-  name: string
+  name: string,
+  areaNumber: string
 ) {
   const supabase = await requireFacilitatorClient()
   const { error } = await supabase
     .from("areas_of_enquiry")
-    .update({ name })
+    .update({ name, area_number: areaNumber })
     .eq("id", areaId)
   if (error) throw error
   revalidate()
