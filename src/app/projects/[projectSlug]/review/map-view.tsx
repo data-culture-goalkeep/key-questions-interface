@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Lock } from "lucide-react"
+import { ExternalLink, Lock } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +24,14 @@ const LINE_STYLE_BY_RELATIONSHIP: Record<
   related_to: { dash: "1 4", opacity: 0.6 },
 }
 
+type NeighborDirection = "upstream" | "downstream" | "lateral"
+
+const NEIGHBOR_RING_CLASS: Record<NeighborDirection, string> = {
+  upstream: "ring-2 ring-blue-400 dark:ring-blue-500",
+  downstream: "ring-2 ring-amber-400 dark:ring-amber-500",
+  lateral: "ring-2 ring-violet-400 dark:ring-violet-500",
+}
+
 interface LineCoords {
   id: string
   x1: number
@@ -40,21 +48,29 @@ export function MapView({
   indicatorLevels,
   selectedKqId,
   onSelectKq,
+  onOpenDetail,
 }: {
   keyQuestions: KeyQuestion[]
   links: KeyQuestionLink[]
   indicatorLevels: IndicatorLevel[]
   selectedKqId: string | null
-  onSelectKq: (kqId: string) => void
+  onSelectKq: (kqId: string | null) => void
+  onOpenDetail: (kqId: string) => void
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null)
-  const nodeRefs = React.useRef(new Map<string, HTMLButtonElement>())
+  const nodeRefs = React.useRef(new Map<string, HTMLDivElement>())
   const [lines, setLines] = React.useState<LineCoords[]>([])
 
   const sortedLevels = React.useMemo(
     () => [...indicatorLevels].sort((a, b) => a.sequence - b.sequence),
     [indicatorLevels]
   )
+
+  const levelIndexById = React.useMemo(() => {
+    const map = new Map<string, number>()
+    sortedLevels.forEach((l, i) => map.set(l.id, i))
+    return map
+  }, [sortedLevels])
 
   const kqsByLevel = React.useMemo(() => {
     const map = new Map<string, KeyQuestion[]>()
@@ -70,6 +86,41 @@ export function MapView({
     }
     return map
   }, [keyQuestions, sortedLevels])
+
+  // For the selected node, classify each directly-linked neighbor as
+  // upstream/downstream/lateral by comparing indicator-level column
+  // position — links themselves carry no direction, so this is inferred
+  // from where each side sits in the results chain.
+  const neighborDirectionByKqId = React.useMemo(() => {
+    const map = new Map<string, NeighborDirection>()
+    if (!selectedKqId) return map
+    const selected = keyQuestions.find((k) => k.id === selectedKqId)
+    if (!selected) return map
+    const selectedLevelIndex = levelIndexById.get(selected.indicator_level_id)
+    if (selectedLevelIndex === undefined) return map
+
+    for (const link of links) {
+      let otherId: string | null = null
+      if (link.key_question_id_a === selectedKqId) otherId = link.key_question_id_b
+      else if (link.key_question_id_b === selectedKqId) otherId = link.key_question_id_a
+      if (!otherId) continue
+
+      const other = keyQuestions.find((k) => k.id === otherId)
+      if (!other) continue
+      const otherLevelIndex = levelIndexById.get(other.indicator_level_id)
+      if (otherLevelIndex === undefined) continue
+
+      map.set(
+        otherId,
+        otherLevelIndex < selectedLevelIndex
+          ? "upstream"
+          : otherLevelIndex > selectedLevelIndex
+            ? "downstream"
+            : "lateral"
+      )
+    }
+    return map
+  }, [selectedKqId, keyQuestions, links, levelIndexById])
 
   const recomputeLines = React.useCallback(() => {
     const container = containerRef.current
@@ -98,7 +149,11 @@ export function MapView({
       })
     }
     setLines(next)
-  }, [links, selectedKqId])
+    // keyQuestions is read only via nodeRefs (DOM lookups), not directly,
+    // but it must stay a dependency: filtering changes which nodes are
+    // mounted, so stale lines from now-unmounted nodes need to be dropped.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [links, selectedKqId, keyQuestions])
 
   React.useLayoutEffect(() => {
     recomputeLines()
@@ -122,7 +177,11 @@ export function MapView({
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">
         Solid lines = informs · dashed = depends on · dotted = related to.
-        Click a key question to view it in the list.
+        Click a key question to highlight what feeds into it (
+        <span className="text-blue-500 dark:text-blue-400">blue</span>) and
+        what it feeds (
+        <span className="text-amber-500 dark:text-amber-400">amber</span>),
+        then use &quot;View details&quot; for the full record.
       </p>
       <div className="overflow-x-auto">
         {/* containerRef's own box must span the full scrollable content
@@ -175,35 +234,62 @@ export function MapView({
                 </h3>
               </div>
               <div className="flex flex-col gap-3">
-                {(kqsByLevel.get(level.id) ?? []).map((kq) => (
-                  <button
-                    key={kq.id}
-                    ref={(el) => {
-                      if (el) nodeRefs.current.set(kq.id, el)
-                      else nodeRefs.current.delete(kq.id)
-                    }}
-                    type="button"
-                    onClick={() => onSelectKq(kq.id)}
-                    className={cn(
-                      "flex flex-col gap-1 rounded-lg border border-border bg-card p-2.5 text-left text-xs shadow-sm transition-colors hover:bg-muted/50",
-                      kq.is_locked && "border-muted-foreground/40",
-                      selectedKqId === kq.id && "ring-2 ring-ring"
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Badge
-                        variant={kq.is_locked ? "secondary" : "outline"}
-                        className="font-mono text-[10px]"
-                      >
-                        {kq.kq_number}
-                      </Badge>
-                      {kq.is_locked && <Lock className="size-3 text-muted-foreground" />}
+                {(kqsByLevel.get(level.id) ?? []).map((kq) => {
+                  const isSelected = selectedKqId === kq.id
+                  const direction = neighborDirectionByKqId.get(kq.id)
+                  return (
+                    <div
+                      key={kq.id}
+                      ref={(el) => {
+                        if (el) nodeRefs.current.set(kq.id, el)
+                        else nodeRefs.current.delete(kq.id)
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onSelectKq(isSelected ? null : kq.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          onSelectKq(isSelected ? null : kq.id)
+                        }
+                      }}
+                      className={cn(
+                        "flex cursor-pointer flex-col gap-1 rounded-lg border border-border bg-card p-2.5 text-left text-xs shadow-sm transition-colors hover:bg-muted/50",
+                        kq.is_locked && "border-muted-foreground/40",
+                        isSelected && "ring-2 ring-ring",
+                        !isSelected && direction && NEIGHBOR_RING_CLASS[direction]
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Badge
+                          variant={kq.is_locked ? "secondary" : "outline"}
+                          className="font-mono text-[10px]"
+                        >
+                          {kq.kq_number}
+                        </Badge>
+                        {kq.is_locked && (
+                          <Lock className="size-3 text-muted-foreground" />
+                        )}
+                      </div>
+                      <span className="line-clamp-3 text-foreground">
+                        {kq.short_name || kq.question_text}
+                      </span>
+                      {isSelected && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onOpenDetail(kq.id)
+                          }}
+                          className="mt-1 flex items-center gap-1 self-start text-[11px] font-medium text-foreground underline-offset-2 hover:underline"
+                        >
+                          View details
+                          <ExternalLink className="size-3" />
+                        </button>
+                      )}
                     </div>
-                    <span className="line-clamp-3 text-foreground">
-                      {kq.question_text}
-                    </span>
-                  </button>
-                ))}
+                  )
+                })}
               </div>
             </div>
           ))}
