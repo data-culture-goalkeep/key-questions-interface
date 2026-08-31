@@ -54,13 +54,25 @@ export function ListView({
     )
   }
 
+  if (keyQuestions.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No key questions match the current filters.
+      </p>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-8">
       {areas.map((area) => {
         const kqs = kqsByArea.get(area.id) ?? []
         if (kqs.length === 0) return null
         return (
-          <div key={area.id} className="flex flex-col gap-3">
+          <div
+            key={area.id}
+            id={`area-${area.id}`}
+            className="flex scroll-mt-24 flex-col gap-3"
+          >
             <h3 className="font-heading text-base font-semibold">
               {area.name}
             </h3>
