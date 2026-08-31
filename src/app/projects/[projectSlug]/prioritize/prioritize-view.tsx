@@ -18,6 +18,34 @@ import {
 import { setRanking } from "./actions"
 import type { PrioritizeKq, VoteRow } from "./page"
 
+// Reordering happens entirely client-side; nothing is written until Save is
+// pressed, which submits every level's final order in one batch.
+type LocalOrder = Map<string, string[]>
+
+function computeOrder(
+  keyQuestions: PrioritizeKq[],
+  sortedLevels: IndicatorLevel[],
+  myRankByKqId: Map<string, number>
+): LocalOrder {
+  const order: LocalOrder = new Map()
+  for (const level of sortedLevels) {
+    const rankable = keyQuestions.filter(
+      (kq) => kq.indicator_level_id === level.id && kq.is_locked
+    )
+    rankable.sort((a, b) => {
+      const ra = myRankByKqId.get(a.id) ?? Number.MAX_SAFE_INTEGER
+      const rb = myRankByKqId.get(b.id) ?? Number.MAX_SAFE_INTEGER
+      if (ra !== rb) return ra - rb
+      return a.kq_number.localeCompare(b.kq_number)
+    })
+    order.set(
+      level.id,
+      rankable.map((kq) => kq.id)
+    )
+  }
+  return order
+}
+
 export function PrioritizeView({
   projectId,
   role,
@@ -34,22 +62,15 @@ export function PrioritizeView({
   indicatorLevels: IndicatorLevel[]
 }) {
   const router = useRouter()
-  const [, startTransition] = React.useTransition()
+  const [saving, setSaving] = React.useState(false)
+  const [dirty, setDirty] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  function run(fn: () => Promise<void>) {
-    setError(null)
-    startTransition(async () => {
-      try {
-        await fn()
-        router.refresh()
-      } catch {
-        setError(
-          "That ranking change didn't save — try again, or refresh the page."
-        )
-      }
-    })
-  }
+  const kqById = React.useMemo(() => {
+    const map = new Map<string, PrioritizeKq>()
+    for (const kq of keyQuestions) map.set(kq.id, kq)
+    return map
+  }, [keyQuestions])
 
   const myRankByKqId = React.useMemo(() => {
     const map = new Map<string, number>()
@@ -62,6 +83,20 @@ export function PrioritizeView({
     [indicatorLevels]
   )
 
+  // Derived fresh from server data on every render; local edits only exist
+  // in localOrderOverride, which move() seeds from this the first time it's
+  // touched. That keeps this in sync with fresh server data (e.g. a
+  // facilitator locking/unlocking a KQ elsewhere) automatically whenever
+  // there's no unsaved local edit to protect, with no effect-based
+  // resync needed.
+  const computedOrder = React.useMemo(
+    () => computeOrder(keyQuestions, sortedLevels, myRankByKqId),
+    [keyQuestions, sortedLevels, myRankByKqId]
+  )
+  const [localOrderOverride, setLocalOrderOverride] =
+    React.useState<LocalOrder | null>(null)
+  const order = dirty && localOrderOverride ? localOrderOverride : computedOrder
+
   const kqsByLevel = React.useMemo(() => {
     const map = new Map<string, PrioritizeKq[]>()
     for (const level of sortedLevels) map.set(level.id, [])
@@ -71,13 +106,52 @@ export function PrioritizeView({
     return map
   }, [keyQuestions, sortedLevels])
 
+  function move(levelId: string, kqId: string, direction: "up" | "down") {
+    setLocalOrderOverride((prev) => {
+      const base = prev ?? order
+      const current = base.get(levelId) ?? []
+      const index = current.indexOf(kqId)
+      const swapWith = direction === "up" ? index - 1 : index + 1
+      if (index === -1 || swapWith < 0 || swapWith >= current.length) return base
+      const next = [...current]
+      ;[next[index], next[swapWith]] = [next[swapWith], next[index]]
+      const map = new Map(base)
+      map.set(levelId, next)
+      return map
+    })
+    setDirty(true)
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      await Promise.all(
+        [...order.entries()]
+          .filter(([, ids]) => ids.length > 0)
+          .map(([, ids]) => setRanking(projectId, ids))
+      )
+      setDirty(false)
+      setLocalOrderOverride(null)
+      router.refresh()
+    } catch {
+      setError("That didn't save — try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-4">
       <div className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold">Prioritise key questions</h2>
         <p className="text-sm text-muted-foreground">
-          Rank the key questions within each level, most important first.
-          Your ranking is personal — {role === "facilitator" ? "the combined ranking below shows how everyone's rankings line up." : "a facilitator will combine everyone's rankings to shortlist the dashboard set."}
+          Rank locked key questions within each level, most important first.
+          Reorder freely, then hit Save — nothing is written until you do.
+          Your ranking is personal —{" "}
+          {role === "facilitator"
+            ? "the combined ranking below shows how everyone's rankings line up."
+            : "a facilitator will combine everyone's rankings to shortlist the dashboard set."}
         </p>
       </div>
 
@@ -87,28 +161,11 @@ export function PrioritizeView({
         const allInLevel = kqsByLevel.get(level.id) ?? []
         if (allInLevel.length === 0) return null
 
-        const rankable =
-          role === "facilitator"
-            ? allInLevel
-            : allInLevel.filter((kq) => !kq.is_locked)
-        const excludedLocked =
-          role === "client" ? allInLevel.filter((kq) => kq.is_locked) : []
-
-        const ordered = [...rankable].sort((a, b) => {
-          const ra = myRankByKqId.get(a.id) ?? Number.MAX_SAFE_INTEGER
-          const rb = myRankByKqId.get(b.id) ?? Number.MAX_SAFE_INTEGER
-          if (ra !== rb) return ra - rb
-          return a.kq_number.localeCompare(b.kq_number)
-        })
-
-        function move(kqId: string, direction: "up" | "down") {
-          const index = ordered.findIndex((k) => k.id === kqId)
-          const swapWith = direction === "up" ? index - 1 : index + 1
-          if (index === -1 || swapWith < 0 || swapWith >= ordered.length) return
-          const next = [...ordered]
-          ;[next[index], next[swapWith]] = [next[swapWith], next[index]]
-          run(() => setRanking(projectId, next.map((k) => k.id)))
-        }
+        const orderedIds = order.get(level.id) ?? []
+        const ordered = orderedIds
+          .map((id) => kqById.get(id))
+          .filter((kq): kq is PrioritizeKq => !!kq)
+        const excludedUnlocked = allInLevel.filter((kq) => !kq.is_locked)
 
         return (
           <Card key={level.id}>
@@ -121,10 +178,7 @@ export function PrioritizeView({
               {ordered.map((kq, index) => (
                 <div
                   key={kq.id}
-                  className={cn(
-                    "flex items-start justify-between gap-3 rounded-lg border border-border p-3",
-                    kq.is_locked && "border-muted-foreground/40"
-                  )}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-border p-3"
                 >
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 w-5 shrink-0 text-sm font-medium text-muted-foreground">
@@ -132,10 +186,7 @@ export function PrioritizeView({
                     </span>
                     <div className="flex flex-col gap-1.5">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge
-                          variant={kq.is_locked ? "secondary" : "outline"}
-                          className="font-mono"
-                        >
+                        <Badge variant="secondary" className="font-mono">
                           {kq.kq_number}
                         </Badge>
                         <Badge
@@ -145,12 +196,6 @@ export function PrioritizeView({
                         >
                           {priorityLabel(kq.priority as Priority)}
                         </Badge>
-                        {kq.is_locked && (
-                          <Badge variant="secondary" className="gap-1">
-                            <Lock className="size-3" />
-                            Locked
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-sm">{kq.question_text}</p>
                     </div>
@@ -160,7 +205,7 @@ export function PrioritizeView({
                       variant="ghost"
                       size="icon-sm"
                       disabled={index === 0}
-                      onClick={() => move(kq.id, "up")}
+                      onClick={() => move(level.id, kq.id, "up")}
                       aria-label="Rank higher"
                     >
                       <ChevronUp className="size-3.5" />
@@ -169,7 +214,7 @@ export function PrioritizeView({
                       variant="ghost"
                       size="icon-sm"
                       disabled={index === ordered.length - 1}
-                      onClick={() => move(kq.id, "down")}
+                      onClick={() => move(level.id, kq.id, "down")}
                       aria-label="Rank lower"
                     >
                       <ChevronDown className="size-3.5" />
@@ -178,23 +223,49 @@ export function PrioritizeView({
                 </div>
               ))}
 
-              {excludedLocked.length > 0 && (
+              {ordered.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No locked key questions in this level yet.
+                </p>
+              )}
+
+              {excludedUnlocked.length > 0 && (
                 <p className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
                   <Lock className="size-3.5" />
-                  {excludedLocked.length} locked question
-                  {excludedLocked.length === 1 ? "" : "s"} in this level
-                  {excludedLocked.length === 1 ? " isn't" : " aren't"} open
-                  for ranking.
+                  {excludedUnlocked.length} key question
+                  {excludedUnlocked.length === 1 ? "" : "s"} in this level
+                  {excludedUnlocked.length === 1 ? " isn't" : " aren't"}{" "}
+                  locked yet — a facilitator locks a question in Manage once
+                  it&apos;s ready to prioritise.
                 </p>
               )}
 
               {role === "facilitator" && (
-                <CombinedRanking keyQuestions={allInLevel} allVotes={allVotes} />
+                <CombinedRanking
+                  keyQuestions={allInLevel.filter((kq) => kq.is_locked)}
+                  allVotes={allVotes}
+                />
               )}
             </CardContent>
           </Card>
         )
       })}
+
+      <div
+        className={cn(
+          "sticky bottom-4 flex items-center gap-3 self-start rounded-lg border border-border bg-background p-3 shadow-sm",
+          !dirty && "opacity-0"
+        )}
+      >
+        <Button type="button" disabled={!dirty || saving} onClick={handleSave}>
+          {saving ? "Saving…" : "Save ranking"}
+        </Button>
+        {dirty && !saving && (
+          <span className="text-xs text-muted-foreground">
+            Unsaved changes
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -230,7 +301,9 @@ function CombinedRanking({
       })
   }, [keyQuestions, allVotes])
 
-  if (combined.every((c) => c.voterCount === 0)) return null
+  if (combined.length === 0 || combined.every((c) => c.voterCount === 0)) {
+    return null
+  }
 
   return (
     <div className="mt-2 flex flex-col gap-1.5 border-t border-border pt-3">

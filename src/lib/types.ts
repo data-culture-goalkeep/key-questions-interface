@@ -70,6 +70,8 @@ export const PRIORITY_BADGE_VARIANT: Record<
   low: "outline",
 }
 
+export type ProjectMode = "review" | "prioritization"
+
 export interface Project {
   id: string
   slug: string
@@ -78,6 +80,7 @@ export interface Project {
   status: "active" | "archived"
   logo_url: string | null
   prioritization_methodology: PrioritizationMethodology
+  mode: ProjectMode
 }
 
 export interface AreaOfEnquiry {
