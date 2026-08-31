@@ -30,7 +30,7 @@ export default async function ReviewPage({
       supabase
         .from("key_questions")
         .select(
-          "id, project_id, area_of_enquiry_id, kq_number, question_text, indicator_level_id, indicator_definition, action_text, primary_user, data_availability_status, data_availability_note, priority, reason_for_priority, sequence, is_locked, key_question_comments(id, key_question_id, author_id, author_email, comment_text, comment_type, status, created_at), key_question_client_reviews(id, key_question_id, user_id, user_email, verified_at)"
+          "id, project_id, area_of_enquiry_id, kq_number, question_text, short_name, indicator_level_id, indicator_definition, action_text, primary_user, data_availability_status, data_availability_note, priority, reason_for_priority, sequence, is_locked, key_question_comments(id, key_question_id, author_id, author_email, comment_text, comment_type, status, created_at), key_question_client_reviews(id, key_question_id, user_id, user_email, verified_at)"
         )
         .eq("project_id", project.id)
         .order("sequence"),

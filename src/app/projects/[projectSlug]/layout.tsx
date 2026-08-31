@@ -35,6 +35,9 @@ export default async function ProjectLayout({
               )}
               <h1 className="text-lg font-semibold">{project.name}</h1>
               <Badge variant="outline">{project.client_name}</Badge>
+              <Badge variant="secondary">
+                {project.mode === "review" ? "Review" : "Prioritization"}
+              </Badge>
             </div>
           </div>
           <div className="flex items-center gap-4">
