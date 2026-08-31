@@ -11,9 +11,17 @@ import {
 export type LockFilter = "all" | "locked" | "unlocked"
 
 export interface ReviewFilters {
-  levelIds: Set<string>
-  priorities: Set<Priority>
+  levelId: string | null
+  priority: Priority | null
+  areaId: string | null
   lockFilter: LockFilter
+}
+
+export const EMPTY_REVIEW_FILTERS: ReviewFilters = {
+  levelId: null,
+  priority: null,
+  areaId: null,
+  lockFilter: "all",
 }
 
 function FilterChip({
@@ -42,37 +50,39 @@ export function ReviewSidebar({
   indicatorLevels,
   filters,
   onFiltersChange,
-  onJumpToArea,
 }: {
   areas: AreaOfEnquiry[]
   indicatorLevels: IndicatorLevel[]
   filters: ReviewFilters
   onFiltersChange: (filters: ReviewFilters) => void
-  onJumpToArea: (areaId: string) => void
 }) {
   const sortedLevels = [...indicatorLevels].sort((a, b) => a.sequence - b.sequence)
 
-  function toggleLevel(id: string) {
-    const next = new Set(filters.levelIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    onFiltersChange({ ...filters, levelIds: next })
+  // Every filter category is single-select: clicking the already-active
+  // value clears it back to "no filter" instead of switching selections.
+  function selectLevel(id: string) {
+    onFiltersChange({ ...filters, levelId: filters.levelId === id ? null : id })
   }
 
-  function togglePriority(p: Priority) {
-    const next = new Set(filters.priorities)
-    if (next.has(p)) next.delete(p)
-    else next.add(p)
-    onFiltersChange({ ...filters, priorities: next })
+  function selectPriority(p: Priority) {
+    onFiltersChange({
+      ...filters,
+      priority: filters.priority === p ? null : p,
+    })
+  }
+
+  function selectArea(id: string) {
+    onFiltersChange({ ...filters, areaId: filters.areaId === id ? null : id })
   }
 
   const hasActiveFilters =
-    filters.levelIds.size > 0 ||
-    filters.priorities.size > 0 ||
+    filters.levelId !== null ||
+    filters.priority !== null ||
+    filters.areaId !== null ||
     filters.lockFilter !== "all"
 
   return (
-    <div className="flex w-56 shrink-0 flex-col gap-6">
+    <div className="flex w-56 shrink-0 flex-col gap-6 sm:sticky sm:top-4 sm:self-start">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -82,15 +92,9 @@ export function ReviewSidebar({
             <button
               type="button"
               className="text-[11px] text-muted-foreground underline-offset-2 hover:underline"
-              onClick={() =>
-                onFiltersChange({
-                  levelIds: new Set(),
-                  priorities: new Set(),
-                  lockFilter: "all",
-                })
-              }
+              onClick={() => onFiltersChange(EMPTY_REVIEW_FILTERS)}
             >
-              Clear
+              Clear all
             </button>
           )}
         </div>
@@ -103,8 +107,8 @@ export function ReviewSidebar({
             {sortedLevels.map((l) => (
               <FilterChip
                 key={l.id}
-                active={filters.levelIds.has(l.id)}
-                onClick={() => toggleLevel(l.id)}
+                active={filters.levelId === l.id}
+                onClick={() => selectLevel(l.id)}
               >
                 {l.number_label}
               </FilterChip>
@@ -118,8 +122,8 @@ export function ReviewSidebar({
             {PRIORITIES.map((p) => (
               <FilterChip
                 key={p.value}
-                active={filters.priorities.has(p.value)}
-                onClick={() => togglePriority(p.value)}
+                active={filters.priority === p.value}
+                onClick={() => selectPriority(p.value)}
               >
                 {p.label}
               </FilterChip>
@@ -154,19 +158,22 @@ export function ReviewSidebar({
           <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Areas of enquiry
           </h4>
-          <nav className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             {areas.map((area) => (
-              <button
+              <FilterChip
                 key={area.id}
-                type="button"
-                onClick={() => onJumpToArea(area.id)}
-                className="truncate text-left text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                title={area.name}
+                active={filters.areaId === area.id}
+                onClick={() => selectArea(area.id)}
               >
-                {area.name}
-              </button>
+                <span className="flex items-center gap-1 text-left">
+                  {area.area_number && (
+                    <span className="font-mono">{area.area_number}</span>
+                  )}
+                  <span className="truncate">{area.name}</span>
+                </span>
+              </FilterChip>
             ))}
-          </nav>
+          </div>
         </div>
       )}
     </div>

@@ -97,6 +97,7 @@ function ManageViewInner({
 }) {
   const { refresh } = useProjectData()
   const [, startTransition] = React.useTransition()
+  const [newAreaNumber, setNewAreaNumber] = React.useState("")
   const [newAreaName, setNewAreaName] = React.useState("")
 
   const kqsByArea = React.useMemo(() => {
@@ -118,7 +119,8 @@ function ManageViewInner({
 
   async function handleAddArea() {
     if (!newAreaName.trim()) return
-    await createArea(projectId, newAreaName.trim())
+    await createArea(projectId, newAreaName.trim(), newAreaNumber.trim())
+    setNewAreaNumber("")
     setNewAreaName("")
   }
 
@@ -150,6 +152,18 @@ function ManageViewInner({
 
       <Card>
         <CardContent className="flex items-center gap-2 pt-4">
+          <Input
+            placeholder="AOE01"
+            className="w-20"
+            value={newAreaNumber}
+            onChange={(e) => setNewAreaNumber(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                run(handleAddArea)
+              }
+            }}
+          />
           <Input
             placeholder="New area of enquiry, e.g. Who Are We Reaching?"
             value={newAreaName}
@@ -198,13 +212,17 @@ function AreaSection({
   refresh: () => Promise<void>
 }) {
   const [editing, setEditing] = React.useState(false)
+  const [areaNumber, setAreaNumber] = React.useState(area.area_number)
   const [name, setName] = React.useState(area.name)
 
   const sorted = [...keyQuestions].sort((a, b) => a.sequence - b.sequence)
 
   async function saveName() {
-    if (name.trim() && name !== area.name) {
-      await renameArea(projectId, area.id, name.trim())
+    if (
+      (name.trim() && name !== area.name) ||
+      areaNumber.trim() !== area.area_number
+    ) {
+      await renameArea(projectId, area.id, name.trim(), areaNumber.trim())
     }
     setEditing(false)
   }
@@ -214,21 +232,43 @@ function AreaSection({
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-2">
           {editing ? (
-            <Input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => run(saveName)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  run(saveName)
-                }
-              }}
-              className="max-w-sm"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                autoFocus
+                value={areaNumber}
+                onChange={(e) => setAreaNumber(e.target.value)}
+                onBlur={() => run(saveName)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    run(saveName)
+                  }
+                }}
+                placeholder="AOE01"
+                className="w-20"
+              />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => run(saveName)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    run(saveName)
+                  }
+                }}
+                className="max-w-sm"
+              />
+            </div>
           ) : (
-            <span>{area.name}</span>
+            <span className="flex items-center gap-2">
+              {area.area_number && (
+                <Badge variant="outline" className="font-mono">
+                  {area.area_number}
+                </Badge>
+              )}
+              {area.name}
+            </span>
           )}
           <div className="flex items-center gap-1">
             <Button

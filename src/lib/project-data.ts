@@ -19,6 +19,8 @@ export interface ProjectData {
   userEmail: string
   avatarUrl: string | null
   fullName: string | null
+  // Unix seconds the current session expires at, or null if unavailable.
+  expiresAt: number | null
   areas: AreaOfEnquiry[]
   keyQuestions: KeyQuestion[]
   indicatorLevels: IndicatorLevel[]
@@ -61,11 +63,18 @@ export async function getProjectData(
     ? "facilitator"
     : "client"
 
+  // getSession() reads the session straight from cookies (no network
+  // round-trip) — only used here for its expires_at timestamp, not as the
+  // source of truth for identity, which stays getUser() above.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
   const [{ data: areas }, { data: keyQuestions }, { data: indicatorLevels }] =
     await Promise.all([
       supabase
         .from("areas_of_enquiry")
-        .select("id, project_id, name, sequence")
+        .select("id, project_id, name, area_number, sequence")
         .eq("project_id", project.id)
         .order("sequence"),
       supabase
@@ -109,6 +118,7 @@ export async function getProjectData(
     userEmail: user.email,
     avatarUrl: (user.user_metadata?.avatar_url as string | undefined) ?? null,
     fullName: (user.user_metadata?.full_name as string | undefined) ?? null,
+    expiresAt: session?.expires_at ?? null,
     areas: (areas ?? []) as AreaOfEnquiry[],
     keyQuestions: (keyQuestions ?? []) as unknown as KeyQuestion[],
     indicatorLevels: (indicatorLevels ?? []) as IndicatorLevel[],

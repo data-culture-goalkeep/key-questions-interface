@@ -137,9 +137,10 @@ function ProjectModeCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          A label shown to everyone on this project — it doesn&apos;t change
-          who can do what. Switch to Prioritization once refinement is done;
-          only locked key questions become rankable either way.
+          Controls which of Review or Prioritize shows in the project nav
+          for everyone — it doesn&apos;t change who can do what beneath
+          that. Switch to Prioritization once refinement is done; only
+          locked key questions become rankable either way.
         </p>
         <div className="flex w-fit overflow-hidden rounded-md border border-input">
           {(["review", "prioritization"] as ProjectMode[]).map((mode) => (
