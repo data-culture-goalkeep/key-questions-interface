@@ -37,7 +37,7 @@ import {
   type ProjectMode,
 } from "@/lib/types"
 
-import { useProjectData } from "../project-data-provider"
+import { ProjectDataGate, useProjectData } from "../project-data-provider"
 import {
   createIndicatorLevel,
   deleteIndicatorLevel,
@@ -48,11 +48,32 @@ import {
   updateProjectDetails,
 } from "./actions"
 
-export function ConfigureView({ project }: { project: Project }) {
-  const { data } = useProjectData()
-  if (!data) return <PageSkeleton rows={4} />
+export function ConfigureView() {
+  return (
+    <ProjectDataGate skeletonRows={4}>
+      {(data) =>
+        data.role !== "facilitator" ? (
+          <FacilitatorRedirect projectSlug={data.project.slug} />
+        ) : (
+          <ConfigureViewInner
+            project={data.project}
+            indicatorLevels={data.indicatorLevels}
+          />
+        )
+      }
+    </ProjectDataGate>
+  )
+}
 
-  return <ConfigureViewInner project={project} indicatorLevels={data.indicatorLevels} />
+// RLS is the real access boundary for facilitator-only writes — this is a
+// UX nicety that bounces a client off the page rather than showing them an
+// empty facilitator screen.
+function FacilitatorRedirect({ projectSlug }: { projectSlug: string }) {
+  const router = useRouter()
+  React.useEffect(() => {
+    router.replace(`/projects/${projectSlug}`)
+  }, [projectSlug, router])
+  return <PageSkeleton rows={4} />
 }
 
 function ConfigureViewInner({
@@ -62,23 +83,16 @@ function ConfigureViewInner({
   project: Project
   indicatorLevels: IndicatorLevel[]
 }) {
-  const router = useRouter()
-  const { refresh: refreshProjectData } = useProjectData()
+  const { refresh } = useProjectData()
   const [, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
 
-  // Project-level fields (name/logo/mode) render in the shared header,
-  // which layout.tsx fetches server-side on every navigation — refresh()
-  // forces that to re-run. Indicator levels live in the client bulk-data
-  // cache instead, so also revalidate that. Simpler to always do both than
-  // to track which mutation touched which.
   function run(fn: () => Promise<void>) {
     setError(null)
     startTransition(async () => {
       try {
         await fn()
-        router.refresh()
-        await refreshProjectData()
+        await refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "That didn't go through.")
       }

@@ -6,7 +6,6 @@ import { ChevronDown, ChevronUp, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageSkeleton } from "@/components/page-skeleton"
 import { cn } from "@/lib/utils"
 import {
   priorityLabel,
@@ -17,7 +16,7 @@ import {
   type VoteRow,
 } from "@/lib/types"
 
-import { useProjectData } from "../project-data-provider"
+import { ProjectDataGate, useProjectData } from "../project-data-provider"
 import { setRanking } from "./actions"
 
 // Reordering happens entirely client-side; nothing is written until Save is
@@ -48,27 +47,20 @@ function computeOrder(
   return order
 }
 
-export function PrioritizeView({
-  projectId,
-  role,
-  userId,
-}: {
-  projectId: string
-  role: "facilitator" | "client"
-  userId: string
-}) {
-  const { data } = useProjectData()
-  if (!data) return <PageSkeleton rows={5} />
-
+export function PrioritizeView() {
   return (
-    <PrioritizeViewInner
-      projectId={projectId}
-      role={role}
-      keyQuestions={data.keyQuestions}
-      myVotes={data.votes.filter((v) => v.voter_id === userId)}
-      allVotes={data.votes}
-      indicatorLevels={data.indicatorLevels}
-    />
+    <ProjectDataGate skeletonRows={5}>
+      {(data) => (
+        <PrioritizeViewInner
+          projectId={data.project.id}
+          role={data.role}
+          keyQuestions={data.keyQuestions}
+          myVotes={data.votes.filter((v) => v.voter_id === data.userId)}
+          allVotes={data.votes}
+          indicatorLevels={data.indicatorLevels}
+        />
+      )}
+    </ProjectDataGate>
   )
 }
 

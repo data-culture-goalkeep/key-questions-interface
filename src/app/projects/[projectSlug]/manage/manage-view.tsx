@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
   ChevronDown,
   ChevronUp,
@@ -38,7 +39,7 @@ import {
   type IndicatorLevel,
   type KeyQuestion,
 } from "@/lib/types"
-import { useProjectData } from "../project-data-provider"
+import { ProjectDataGate, useProjectData } from "../project-data-provider"
 import {
   createArea,
   renameArea,
@@ -53,18 +54,34 @@ import {
 } from "./actions"
 import { KqFormDialog } from "./kq-form-dialog"
 
-export function ManageView({ projectId }: { projectId: string }) {
-  const { data } = useProjectData()
-  if (!data) return <PageSkeleton rows={6} />
-
+export function ManageView() {
   return (
-    <ManageViewInner
-      projectId={projectId}
-      areas={data.areas}
-      keyQuestions={data.keyQuestions}
-      indicatorLevels={data.indicatorLevels}
-    />
+    <ProjectDataGate skeletonRows={6}>
+      {(data) =>
+        data.role !== "facilitator" ? (
+          <FacilitatorRedirect projectSlug={data.project.slug} />
+        ) : (
+          <ManageViewInner
+            projectId={data.project.id}
+            areas={data.areas}
+            keyQuestions={data.keyQuestions}
+            indicatorLevels={data.indicatorLevels}
+          />
+        )
+      }
+    </ProjectDataGate>
   )
+}
+
+// RLS is the real access boundary for facilitator-only writes — this is a
+// UX nicety that bounces a client off the page rather than showing them an
+// empty facilitator screen.
+function FacilitatorRedirect({ projectSlug }: { projectSlug: string }) {
+  const router = useRouter()
+  React.useEffect(() => {
+    router.replace(`/projects/${projectSlug}`)
+  }, [projectSlug, router])
+  return <PageSkeleton rows={6} />
 }
 
 function ManageViewInner({
