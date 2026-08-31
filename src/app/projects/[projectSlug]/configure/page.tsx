@@ -13,14 +13,15 @@ export default async function ConfigurePage({
   params: Promise<{ projectSlug: string }>
 }) {
   const { projectSlug } = await params
-  const userContext = await getCurrentUserContext()
+  const [userContext, project, supabase] = await Promise.all([
+    getCurrentUserContext(),
+    getProjectBySlug(projectSlug),
+    createClient(),
+  ])
 
   if (userContext?.role !== "facilitator") {
     redirect(`/projects/${projectSlug}`)
   }
-
-  const project = await getProjectBySlug(projectSlug)
-  const supabase = await createClient()
 
   const { data: indicatorLevels } = await supabase
     .from("indicator_levels")

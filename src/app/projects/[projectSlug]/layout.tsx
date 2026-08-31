@@ -13,8 +13,10 @@ export default async function ProjectLayout({
   params: Promise<{ projectSlug: string }>
 }) {
   const { projectSlug } = await params
-  const userContext = await getCurrentUserContext()
-  const project = await getProjectBySlug(projectSlug)
+  const [userContext, project] = await Promise.all([
+    getCurrentUserContext(),
+    getProjectBySlug(projectSlug),
+  ])
 
   return (
     <div className="flex flex-1 flex-col">

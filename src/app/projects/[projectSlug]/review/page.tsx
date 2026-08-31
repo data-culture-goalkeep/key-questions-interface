@@ -16,9 +16,11 @@ export default async function ReviewPage({
   params: Promise<{ projectSlug: string }>
 }) {
   const { projectSlug } = await params
-  const project = await getProjectBySlug(projectSlug)
-  const userContext = await getCurrentUserContext()
-  const supabase = await createClient()
+  const [project, userContext, supabase] = await Promise.all([
+    getProjectBySlug(projectSlug),
+    getCurrentUserContext(),
+    createClient(),
+  ])
 
   const [{ data: areas }, { data: keyQuestions }, { data: indicatorLevels }] =
     await Promise.all([

@@ -13,14 +13,15 @@ export default async function ManagePage({
   params: Promise<{ projectSlug: string }>
 }) {
   const { projectSlug } = await params
-  const userContext = await getCurrentUserContext()
+  const [userContext, project, supabase] = await Promise.all([
+    getCurrentUserContext(),
+    getProjectBySlug(projectSlug),
+    createClient(),
+  ])
 
   if (userContext?.role !== "facilitator") {
     redirect(`/projects/${projectSlug}`)
   }
-
-  const project = await getProjectBySlug(projectSlug)
-  const supabase = await createClient()
 
   const [{ data: areas }, { data: keyQuestions }, { data: indicatorLevels }] =
     await Promise.all([
