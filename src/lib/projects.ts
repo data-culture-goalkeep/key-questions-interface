@@ -1,11 +1,14 @@
 import "server-only"
 
+import { cache } from "react"
 import { notFound } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import type { Project } from "@/lib/types"
 
-export async function getProjectBySlug(slug: string): Promise<Project> {
+// Layout and page both need this; cache() dedupes repeat calls with the
+// same slug within one request instead of re-querying Supabase.
+export const getProjectBySlug = cache(async (slug: string): Promise<Project> => {
   const supabase = await createClient()
   const { data: project } = await supabase
     .from("projects")
@@ -17,4 +20,4 @@ export async function getProjectBySlug(slug: string): Promise<Project> {
 
   if (!project) notFound()
   return project as Project
-}
+})

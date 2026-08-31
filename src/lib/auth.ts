@@ -1,5 +1,7 @@
 import "server-only"
 
+import { cache } from "react"
+
 import { createClient } from "@/lib/supabase/server"
 
 const FACILITATOR_DOMAIN = "@goalkeep.net"
@@ -16,7 +18,10 @@ export type UserContext =
   | ({ role: "client" } & BaseUserContext)
   | null
 
-export async function getCurrentUserContext(): Promise<UserContext> {
+// Layout and page both need this; cache() dedupes repeat calls within one
+// request instead of hitting Supabase's auth server (a real network call,
+// not a local JWT decode) twice per navigation.
+export const getCurrentUserContext = cache(async (): Promise<UserContext> => {
   const supabase = await createClient()
   const {
     data: { user },
@@ -35,4 +40,4 @@ export async function getCurrentUserContext(): Promise<UserContext> {
     avatarUrl: (user.user_metadata?.avatar_url as string | undefined) ?? null,
     fullName: (user.user_metadata?.full_name as string | undefined) ?? null,
   }
-}
+})

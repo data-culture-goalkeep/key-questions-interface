@@ -1,7 +1,5 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
-
 import { createClient } from "@/lib/supabase/server"
 import type { DataAvailabilityStatus, Priority } from "@/lib/types"
 
@@ -14,15 +12,6 @@ async function requireFacilitatorClient() {
     throw new Error("Only facilitators can make changes here.")
   }
   return supabase
-}
-
-// projectId here is the real database id (resolved server-side from the
-// slug before it reaches these actions) — but the URL itself is keyed by
-// slug, so revalidatePath needs the route's dynamic-segment *pattern*
-// (which revalidates every matching URL) rather than a literal path built
-// from the id.
-function revalidate() {
-  revalidatePath("/projects/[projectSlug]/manage", "page")
 }
 
 // --- Areas of enquiry -------------------------------------------------
@@ -38,7 +27,6 @@ export async function createArea(projectId: string, name: string) {
     .from("areas_of_enquiry")
     .insert({ project_id: projectId, name, sequence: count ?? 0 })
   if (error) throw error
-  revalidate()
 }
 
 export async function renameArea(
@@ -52,7 +40,6 @@ export async function renameArea(
     .update({ name })
     .eq("id", areaId)
   if (error) throw error
-  revalidate()
 }
 
 export async function deleteArea(projectId: string, areaId: string) {
@@ -62,7 +49,6 @@ export async function deleteArea(projectId: string, areaId: string) {
     .delete()
     .eq("id", areaId)
   if (error) throw error
-  revalidate()
 }
 
 export async function moveArea(
@@ -94,7 +80,6 @@ export async function moveArea(
       .update({ sequence: a.sequence })
       .eq("id", b.id),
   ])
-  revalidate()
 }
 
 // --- Key questions ------------------------------------------------------
@@ -141,7 +126,6 @@ export async function createKeyQuestion(
     sequence: count ?? 0,
   })
   if (error) throw error
-  revalidate()
 }
 
 export async function updateKeyQuestion(
@@ -168,7 +152,6 @@ export async function updateKeyQuestion(
     })
     .eq("id", kqId)
   if (error) throw error
-  revalidate()
 }
 
 export async function deleteKeyQuestion(projectId: string, kqId: string) {
@@ -178,7 +161,6 @@ export async function deleteKeyQuestion(projectId: string, kqId: string) {
     .delete()
     .eq("id", kqId)
   if (error) throw error
-  revalidate()
 }
 
 export async function setKeyQuestionLocked(
@@ -192,7 +174,6 @@ export async function setKeyQuestionLocked(
     .update({ is_locked: isLocked })
     .eq("id", kqId)
   if (error) throw error
-  revalidate()
 }
 
 export async function moveKeyQuestion(
@@ -219,5 +200,4 @@ export async function moveKeyQuestion(
     supabase.from("key_questions").update({ sequence: b.sequence }).eq("id", a.id),
     supabase.from("key_questions").update({ sequence: a.sequence }).eq("id", b.id),
   ])
-  revalidate()
 }

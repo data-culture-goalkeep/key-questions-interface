@@ -1,7 +1,5 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
-
 import { createClient } from "@/lib/supabase/server"
 import { slugify } from "@/lib/slug"
 import type { PrioritizationMethodology, ProjectMode } from "@/lib/types"
@@ -15,12 +13,6 @@ async function requireFacilitatorClient() {
     throw new Error("Only facilitators can make changes here.")
   }
   return supabase
-}
-
-function revalidate() {
-  revalidatePath("/projects/[projectSlug]/configure", "page")
-  // Project name/client name/logo also render in the shared project header.
-  revalidatePath("/projects/[projectSlug]", "layout")
 }
 
 export async function updateProjectDetails(
@@ -41,7 +33,6 @@ export async function updateProjectDetails(
     })
     .eq("id", projectId)
   if (error) throw error
-  revalidate()
 }
 
 export async function setProjectMode(projectId: string, mode: ProjectMode) {
@@ -51,7 +42,6 @@ export async function setProjectMode(projectId: string, mode: ProjectMode) {
     .update({ mode })
     .eq("id", projectId)
   if (error) throw error
-  revalidate()
 }
 
 export async function setProjectLogo(projectId: string, logoUrl: string | null) {
@@ -61,7 +51,6 @@ export async function setProjectLogo(projectId: string, logoUrl: string | null) 
     .update({ logo_url: logoUrl })
     .eq("id", projectId)
   if (error) throw error
-  revalidate()
 }
 
 // --- Indicator levels -----------------------------------------------------
@@ -102,7 +91,6 @@ export async function createIndicatorLevel(
     sequence: maxSequence + 1,
   })
   if (error) throw error
-  revalidate()
 }
 
 export async function updateIndicatorLevel(
@@ -115,7 +103,6 @@ export async function updateIndicatorLevel(
     .update({ label: input.label, number_label: input.numberLabel })
     .eq("id", levelId)
   if (error) throw error
-  revalidate()
 }
 
 export async function deleteIndicatorLevel(levelId: string) {
@@ -132,7 +119,6 @@ export async function deleteIndicatorLevel(levelId: string) {
     }
     throw error
   }
-  revalidate()
 }
 
 export async function moveIndicatorLevel(
@@ -164,5 +150,4 @@ export async function moveIndicatorLevel(
       .update({ sequence: a.sequence })
       .eq("id", b.id),
   ])
-  revalidate()
 }
