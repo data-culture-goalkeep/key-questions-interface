@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { PageSkeleton } from "@/components/page-skeleton"
 import { createClient } from "@/lib/supabase/client"
 import {
   PRIORITIZATION_METHODOLOGIES,
@@ -36,6 +37,7 @@ import {
   type ProjectMode,
 } from "@/lib/types"
 
+import { ProjectDataGate, useProjectData } from "../project-data-provider"
 import {
   createIndicatorLevel,
   deleteIndicatorLevel,
@@ -46,14 +48,42 @@ import {
   updateProjectDetails,
 } from "./actions"
 
-export function ConfigureView({
+export function ConfigureView() {
+  return (
+    <ProjectDataGate skeletonRows={4}>
+      {(data) =>
+        data.role !== "facilitator" ? (
+          <FacilitatorRedirect projectSlug={data.project.slug} />
+        ) : (
+          <ConfigureViewInner
+            project={data.project}
+            indicatorLevels={data.indicatorLevels}
+          />
+        )
+      }
+    </ProjectDataGate>
+  )
+}
+
+// RLS is the real access boundary for facilitator-only writes — this is a
+// UX nicety that bounces a client off the page rather than showing them an
+// empty facilitator screen.
+function FacilitatorRedirect({ projectSlug }: { projectSlug: string }) {
+  const router = useRouter()
+  React.useEffect(() => {
+    router.replace(`/projects/${projectSlug}`)
+  }, [projectSlug, router])
+  return <PageSkeleton rows={4} />
+}
+
+function ConfigureViewInner({
   project,
   indicatorLevels,
 }: {
   project: Project
   indicatorLevels: IndicatorLevel[]
 }) {
-  const router = useRouter()
+  const { refresh } = useProjectData()
   const [, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
 
@@ -62,7 +92,7 @@ export function ConfigureView({
     startTransition(async () => {
       try {
         await fn()
-        router.refresh()
+        await refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "That didn't go through.")
       }

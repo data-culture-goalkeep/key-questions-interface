@@ -1,7 +1,5 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
-
 import { createClient } from "@/lib/supabase/server"
 import type { CommentType } from "@/lib/types"
 
@@ -12,10 +10,6 @@ async function requireUser() {
   } = await supabase.auth.getUser()
   if (!user?.email) throw new Error("Not signed in.")
   return { supabase, user }
-}
-
-function revalidate() {
-  revalidatePath("/projects/[projectSlug]/review", "page")
 }
 
 export async function addComment(
@@ -33,7 +27,6 @@ export async function addComment(
     comment_type: commentType,
   })
   if (error) throw error
-  revalidate()
 }
 
 export async function setCommentResolved(
@@ -47,7 +40,6 @@ export async function setCommentResolved(
     .update({ status: resolved ? "resolved" : "open" })
     .eq("id", commentId)
   if (error) throw error
-  revalidate()
 }
 
 export async function toggleVerified(
@@ -72,5 +64,4 @@ export async function toggleVerified(
     })
     if (error) throw error
   }
-  revalidate()
 }

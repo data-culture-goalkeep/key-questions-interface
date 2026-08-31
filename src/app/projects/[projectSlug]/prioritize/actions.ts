@@ -1,7 +1,5 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
-
 import { createClient } from "@/lib/supabase/server"
 
 // Rewrites the current user's full ranking for one indicator-level group in
@@ -28,6 +26,4 @@ export async function setRanking(
     .from("key_question_priority_votes")
     .upsert(rows, { onConflict: "key_question_id,voter_id" })
   if (error) throw error
-
-  revalidatePath("/projects/[projectSlug]/prioritize", "page")
 }

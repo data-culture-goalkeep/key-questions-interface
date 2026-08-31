@@ -10,6 +10,7 @@ import type {
   KeyQuestionLink,
 } from "@/lib/types"
 
+import { ProjectDataGate } from "../project-data-provider"
 import { KqDetailPanel } from "./kq-detail-panel"
 import { ListView } from "./list-view"
 import { MapView } from "./map-view"
@@ -19,7 +20,25 @@ import {
   type ReviewFilters,
 } from "./review-sidebar"
 
-export function ReviewShell({
+export function ReviewShell() {
+  return (
+    <ProjectDataGate skeletonRows={6}>
+      {(data) => (
+        <ReviewShellInner
+          projectId={data.project.id}
+          userId={data.userId}
+          role={data.role}
+          areas={data.areas}
+          keyQuestions={data.keyQuestions}
+          links={data.links}
+          indicatorLevels={data.indicatorLevels}
+        />
+      )}
+    </ProjectDataGate>
+  )
+}
+
+function ReviewShellInner({
   projectId,
   userId,
   role,
