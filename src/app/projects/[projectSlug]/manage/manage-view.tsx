@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import {
   ChevronDown,
   ChevronUp,
@@ -29,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+import { PageSkeleton } from "@/components/page-skeleton"
 import { cn } from "@/lib/utils"
 import {
   indicatorLevelLabel,
@@ -38,6 +38,7 @@ import {
   type IndicatorLevel,
   type KeyQuestion,
 } from "@/lib/types"
+import { useProjectData } from "../project-data-provider"
 import {
   createArea,
   renameArea,
@@ -52,35 +53,49 @@ import {
 } from "./actions"
 import { KqFormDialog } from "./kq-form-dialog"
 
-export function ManageView({
+export function ManageView({ projectId }: { projectId: string }) {
+  const { data } = useProjectData()
+  if (!data) return <PageSkeleton rows={6} />
+
+  return (
+    <ManageViewInner
+      projectId={projectId}
+      areas={data.areas}
+      keyQuestions={data.keyQuestions}
+      indicatorLevels={data.indicatorLevels}
+    />
+  )
+}
+
+function ManageViewInner({
   projectId,
-  initialAreas,
-  initialKeyQuestions,
+  areas,
+  keyQuestions,
   indicatorLevels,
 }: {
   projectId: string
-  initialAreas: AreaOfEnquiry[]
-  initialKeyQuestions: KeyQuestion[]
+  areas: AreaOfEnquiry[]
+  keyQuestions: KeyQuestion[]
   indicatorLevels: IndicatorLevel[]
 }) {
-  const router = useRouter()
+  const { refresh } = useProjectData()
   const [, startTransition] = React.useTransition()
   const [newAreaName, setNewAreaName] = React.useState("")
 
   const kqsByArea = React.useMemo(() => {
     const map = new Map<string, KeyQuestion[]>()
-    for (const kq of initialKeyQuestions) {
+    for (const kq of keyQuestions) {
       const list = map.get(kq.area_of_enquiry_id) ?? []
       list.push(kq)
       map.set(kq.area_of_enquiry_id, list)
     }
     return map
-  }, [initialKeyQuestions])
+  }, [keyQuestions])
 
   function run(fn: () => Promise<void>) {
     startTransition(async () => {
       await fn()
-      router.refresh()
+      await refresh()
     })
   }
 
@@ -101,17 +116,18 @@ export function ManageView({
         </p>
       </div>
 
-      {initialAreas.map((area, areaIndex) => (
+      {areas.map((area, areaIndex) => (
         <AreaSection
           key={area.id}
           projectId={projectId}
           area={area}
-          areas={initialAreas}
+          areas={areas}
           keyQuestions={kqsByArea.get(area.id) ?? []}
           indicatorLevels={indicatorLevels}
           isFirst={areaIndex === 0}
-          isLast={areaIndex === initialAreas.length - 1}
+          isLast={areaIndex === areas.length - 1}
           run={run}
+          refresh={refresh}
         />
       ))}
 
@@ -152,6 +168,7 @@ function AreaSection({
   isFirst,
   isLast,
   run,
+  refresh,
 }: {
   projectId: string
   area: AreaOfEnquiry
@@ -161,6 +178,7 @@ function AreaSection({
   isFirst: boolean
   isLast: boolean
   run: (fn: () => Promise<void>) => void
+  refresh: () => Promise<void>
 }) {
   const [editing, setEditing] = React.useState(false)
   const [name, setName] = React.useState(area.name)
@@ -265,6 +283,7 @@ function AreaSection({
             isFirst={kqIndex === 0}
             isLast={kqIndex === sorted.length - 1}
             run={run}
+            refresh={refresh}
           />
         ))}
 
@@ -276,6 +295,7 @@ function AreaSection({
           defaultAreaId={area.id}
           onSubmit={async (input: KeyQuestionInput) => {
             await createKeyQuestion(projectId, input)
+            await refresh()
           }}
           trigger={
             <Button variant="outline" size="sm" className="w-fit gap-1.5">
@@ -297,6 +317,7 @@ function KqRow({
   isFirst,
   isLast,
   run,
+  refresh,
 }: {
   projectId: string
   areas: AreaOfEnquiry[]
@@ -305,6 +326,7 @@ function KqRow({
   isFirst: boolean
   isLast: boolean
   run: (fn: () => Promise<void>) => void
+  refresh: () => Promise<void>
 }) {
   return (
     <div
@@ -384,6 +406,7 @@ function KqRow({
           keyQuestion={kq}
           onSubmit={async (input: KeyQuestionInput) => {
             await updateKeyQuestion(projectId, kq.id, input)
+            await refresh()
           }}
           trigger={
             <Button variant="ghost" size="icon-sm" aria-label="Edit">

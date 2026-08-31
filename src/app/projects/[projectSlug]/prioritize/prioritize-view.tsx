@@ -1,29 +1,31 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { ChevronDown, ChevronUp, Lock } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { PageSkeleton } from "@/components/page-skeleton"
 import { cn } from "@/lib/utils"
 import {
   priorityLabel,
   PRIORITY_BADGE_VARIANT,
   type IndicatorLevel,
+  type KeyQuestion,
   type Priority,
+  type VoteRow,
 } from "@/lib/types"
 
+import { useProjectData } from "../project-data-provider"
 import { setRanking } from "./actions"
-import type { PrioritizeKq, VoteRow } from "./page"
 
 // Reordering happens entirely client-side; nothing is written until Save is
 // pressed, which submits every level's final order in one batch.
 type LocalOrder = Map<string, string[]>
 
 function computeOrder(
-  keyQuestions: PrioritizeKq[],
+  keyQuestions: KeyQuestion[],
   sortedLevels: IndicatorLevel[],
   myRankByKqId: Map<string, number>
 ): LocalOrder {
@@ -49,6 +51,30 @@ function computeOrder(
 export function PrioritizeView({
   projectId,
   role,
+  userId,
+}: {
+  projectId: string
+  role: "facilitator" | "client"
+  userId: string
+}) {
+  const { data } = useProjectData()
+  if (!data) return <PageSkeleton rows={5} />
+
+  return (
+    <PrioritizeViewInner
+      projectId={projectId}
+      role={role}
+      keyQuestions={data.keyQuestions}
+      myVotes={data.votes.filter((v) => v.voter_id === userId)}
+      allVotes={data.votes}
+      indicatorLevels={data.indicatorLevels}
+    />
+  )
+}
+
+function PrioritizeViewInner({
+  projectId,
+  role,
   keyQuestions,
   myVotes,
   allVotes,
@@ -56,18 +82,18 @@ export function PrioritizeView({
 }: {
   projectId: string
   role: "facilitator" | "client"
-  keyQuestions: PrioritizeKq[]
+  keyQuestions: KeyQuestion[]
   myVotes: VoteRow[]
   allVotes: VoteRow[]
   indicatorLevels: IndicatorLevel[]
 }) {
-  const router = useRouter()
+  const { refresh } = useProjectData()
   const [saving, setSaving] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   const kqById = React.useMemo(() => {
-    const map = new Map<string, PrioritizeKq>()
+    const map = new Map<string, KeyQuestion>()
     for (const kq of keyQuestions) map.set(kq.id, kq)
     return map
   }, [keyQuestions])
@@ -98,7 +124,7 @@ export function PrioritizeView({
   const order = dirty && localOrderOverride ? localOrderOverride : computedOrder
 
   const kqsByLevel = React.useMemo(() => {
-    const map = new Map<string, PrioritizeKq[]>()
+    const map = new Map<string, KeyQuestion[]>()
     for (const level of sortedLevels) map.set(level.id, [])
     for (const kq of keyQuestions) {
       map.get(kq.indicator_level_id)?.push(kq)
@@ -133,7 +159,7 @@ export function PrioritizeView({
       )
       setDirty(false)
       setLocalOrderOverride(null)
-      router.refresh()
+      await refresh()
     } catch {
       setError("That didn't save — try again.")
     } finally {
@@ -164,7 +190,7 @@ export function PrioritizeView({
         const orderedIds = order.get(level.id) ?? []
         const ordered = orderedIds
           .map((id) => kqById.get(id))
-          .filter((kq): kq is PrioritizeKq => !!kq)
+          .filter((kq): kq is KeyQuestion => !!kq)
         const excludedUnlocked = allInLevel.filter((kq) => !kq.is_locked)
 
         return (
@@ -274,7 +300,7 @@ function CombinedRanking({
   keyQuestions,
   allVotes,
 }: {
-  keyQuestions: PrioritizeKq[]
+  keyQuestions: KeyQuestion[]
   allVotes: VoteRow[]
 }) {
   const combined = React.useMemo(() => {

@@ -4,6 +4,7 @@ import { getCurrentUserContext } from "@/lib/auth"
 import { getProjectBySlug } from "@/lib/projects"
 import { Badge } from "@/components/ui/badge"
 import { ProfileButton } from "@/components/profile-button"
+import { ProjectDataProvider } from "./project-data-provider"
 
 export default async function ProjectLayout({
   children,
@@ -78,7 +79,9 @@ export default async function ProjectLayout({
         </div>
       </header>
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-        {children}
+        <ProjectDataProvider projectId={project.id}>
+          {children}
+        </ProjectDataProvider>
       </div>
     </div>
   )

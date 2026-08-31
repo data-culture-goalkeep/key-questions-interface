@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { PageSkeleton } from "@/components/page-skeleton"
 import { createClient } from "@/lib/supabase/client"
 import {
   PRIORITIZATION_METHODOLOGIES,
@@ -36,6 +37,7 @@ import {
   type ProjectMode,
 } from "@/lib/types"
 
+import { useProjectData } from "../project-data-provider"
 import {
   createIndicatorLevel,
   deleteIndicatorLevel,
@@ -46,7 +48,14 @@ import {
   updateProjectDetails,
 } from "./actions"
 
-export function ConfigureView({
+export function ConfigureView({ project }: { project: Project }) {
+  const { data } = useProjectData()
+  if (!data) return <PageSkeleton rows={4} />
+
+  return <ConfigureViewInner project={project} indicatorLevels={data.indicatorLevels} />
+}
+
+function ConfigureViewInner({
   project,
   indicatorLevels,
 }: {
@@ -54,15 +63,22 @@ export function ConfigureView({
   indicatorLevels: IndicatorLevel[]
 }) {
   const router = useRouter()
+  const { refresh: refreshProjectData } = useProjectData()
   const [, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
 
+  // Project-level fields (name/logo/mode) render in the shared header,
+  // which layout.tsx fetches server-side on every navigation — refresh()
+  // forces that to re-run. Indicator levels live in the client bulk-data
+  // cache instead, so also revalidate that. Simpler to always do both than
+  // to track which mutation touched which.
   function run(fn: () => Promise<void>) {
     setError(null)
     startTransition(async () => {
       try {
         await fn()
         router.refresh()
+        await refreshProjectData()
       } catch (e) {
         setError(e instanceof Error ? e.message : "That didn't go through.")
       }

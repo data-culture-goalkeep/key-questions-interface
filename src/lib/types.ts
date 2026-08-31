@@ -120,6 +120,12 @@ export interface KeyQuestionLink {
   relationship_type: RelationshipType
 }
 
+export interface VoteRow {
+  key_question_id: string
+  voter_id: string
+  rank_within_type: number
+}
+
 export interface KeyQuestion {
   id: string
   project_id: string

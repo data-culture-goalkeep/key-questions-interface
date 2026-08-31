@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageSkeleton } from "@/components/page-skeleton"
 import type {
   AreaOfEnquiry,
   IndicatorLevel,
@@ -10,12 +11,38 @@ import type {
   KeyQuestionLink,
 } from "@/lib/types"
 
+import { useProjectData } from "../project-data-provider"
 import { KqDetailPanel } from "./kq-detail-panel"
 import { ListView } from "./list-view"
 import { MapView } from "./map-view"
 import { ReviewSidebar, type ReviewFilters } from "./review-sidebar"
 
 export function ReviewShell({
+  projectId,
+  userId,
+  role,
+}: {
+  projectId: string
+  userId: string
+  role: "facilitator" | "client"
+}) {
+  const { data } = useProjectData()
+  if (!data) return <PageSkeleton rows={6} />
+
+  return (
+    <ReviewShellInner
+      projectId={projectId}
+      userId={userId}
+      role={role}
+      areas={data.areas}
+      keyQuestions={data.keyQuestions}
+      links={data.links}
+      indicatorLevels={data.indicatorLevels}
+    />
+  )
+}
+
+function ReviewShellInner({
   projectId,
   userId,
   role,

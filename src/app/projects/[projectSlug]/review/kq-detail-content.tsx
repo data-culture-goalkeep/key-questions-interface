@@ -20,6 +20,7 @@ import {
   type CommentType,
   type KeyQuestion,
 } from "@/lib/types"
+import { useProjectData } from "../project-data-provider"
 import { addComment, setCommentResolved, toggleVerified } from "./actions"
 
 // The field list, comments thread, and comment/verify action bar for one
@@ -36,6 +37,7 @@ export function KqDetailContent({
   role: "facilitator" | "client"
   userId: string
 }) {
+  const { refresh } = useProjectData()
   const [pending, startTransition] = React.useTransition()
   const [commentText, setCommentText] = React.useState("")
   const [commentType, setCommentType] = React.useState<CommentType>("general")
@@ -46,6 +48,7 @@ export function KqDetailContent({
     startTransition(async () => {
       try {
         await fn()
+        await refresh()
       } catch {
         setActionError(
           "That didn't go through — this key question may have just been locked. Refresh and try again."
