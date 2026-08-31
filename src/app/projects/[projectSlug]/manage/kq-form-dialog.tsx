@@ -46,10 +46,11 @@ function emptyForm(defaultIndicatorLevelId: string): KeyQuestionInput {
     dataAvailabilityNote: "",
     priority: "medium",
     reasonForPriority: "",
+    dependsOnKqIds: [],
   }
 }
 
-function toForm(kq: KeyQuestion): KeyQuestionInput {
+function toForm(kq: KeyQuestion, dependsOnKqIds: string[]): KeyQuestionInput {
   return {
     areaOfEnquiryId: kq.area_of_enquiry_id,
     kqNumber: kq.kq_number,
@@ -63,20 +64,27 @@ function toForm(kq: KeyQuestion): KeyQuestionInput {
     dataAvailabilityNote: kq.data_availability_note,
     priority: kq.priority,
     reasonForPriority: kq.reason_for_priority,
+    dependsOnKqIds,
   }
 }
 
 export function KqFormDialog({
   areas,
   indicatorLevels,
+  allKeyQuestions,
   keyQuestion,
+  initialDependsOnKqIds,
   defaultAreaId,
   trigger,
   onSubmit,
 }: {
   areas: AreaOfEnquiry[]
   indicatorLevels: IndicatorLevel[]
+  // Candidates for the "Depends on" picker — every other KQ in the
+  // project, filtered below to indicator levels at or before this KQ's own.
+  allKeyQuestions: KeyQuestion[]
   keyQuestion?: KeyQuestion
+  initialDependsOnKqIds?: string[]
   defaultAreaId?: string
   trigger: React.ReactNode
   onSubmit: (input: KeyQuestionInput) => Promise<void>
@@ -85,7 +93,7 @@ export function KqFormDialog({
   const [saving, setSaving] = React.useState(false)
   const [form, setForm] = React.useState<KeyQuestionInput>(
     keyQuestion
-      ? toForm(keyQuestion)
+      ? toForm(keyQuestion, initialDependsOnKqIds ?? [])
       : {
           ...emptyForm(indicatorLevels[0]?.id ?? ""),
           areaOfEnquiryId: defaultAreaId ?? "",
@@ -106,6 +114,56 @@ export function KqFormDialog({
   function set<K extends keyof KeyQuestionInput>(key: K, value: KeyQuestionInput[K]) {
     setForm((f) => ({ ...f, [key]: value }))
   }
+
+  const levelSequenceById = React.useMemo(
+    () => new Map(indicatorLevels.map((l) => [l.id, l.sequence])),
+    [indicatorLevels]
+  )
+
+  // Switching to an earlier indicator level can put a previously-selected
+  // dependency out of range — drop it rather than carry a hidden selection
+  // the picker no longer shows.
+  function setIndicatorLevel(newLevelId: string) {
+    const newSequence = levelSequenceById.get(newLevelId) ?? Infinity
+    setForm((f) => ({
+      ...f,
+      indicatorLevelId: newLevelId,
+      dependsOnKqIds: f.dependsOnKqIds.filter((id) => {
+        const kq = allKeyQuestions.find((k) => k.id === id)
+        const sequence = kq
+          ? (levelSequenceById.get(kq.indicator_level_id) ?? Infinity)
+          : Infinity
+        return sequence <= newSequence
+      }),
+    }))
+  }
+
+  function toggleDependsOn(kqId: string) {
+    setForm((f) => ({
+      ...f,
+      dependsOnKqIds: f.dependsOnKqIds.includes(kqId)
+        ? f.dependsOnKqIds.filter((id) => id !== kqId)
+        : [...f.dependsOnKqIds, kqId],
+    }))
+  }
+
+  const currentLevelSequence =
+    levelSequenceById.get(form.indicatorLevelId) ?? Infinity
+  const dependsOnCandidatesByLevel = React.useMemo(() => {
+    const map = new Map<string, KeyQuestion[]>()
+    for (const kq of allKeyQuestions) {
+      if (keyQuestion && kq.id === keyQuestion.id) continue
+      const sequence = levelSequenceById.get(kq.indicator_level_id) ?? Infinity
+      if (sequence > currentLevelSequence) continue
+      const list = map.get(kq.indicator_level_id) ?? []
+      list.push(kq)
+      map.set(kq.indicator_level_id, list)
+    }
+    return map
+  }, [allKeyQuestions, keyQuestion, levelSequenceById, currentLevelSequence])
+  const sortedLevelsForPicker = [...indicatorLevels].sort(
+    (a, b) => a.sequence - b.sequence
+  )
 
   const [previewDefinition, setPreviewDefinition] = React.useState(false)
   const needsAvailabilityNote = form.dataAvailabilityStatus !== "fully_available"
@@ -185,7 +243,7 @@ export function KqFormDialog({
                 <Label htmlFor="indicatorLevelId">Indicator type</Label>
                 <Select
                   value={form.indicatorLevelId}
-                  onValueChange={(v) => set("indicatorLevelId", v)}
+                  onValueChange={setIndicatorLevel}
                 >
                   <SelectTrigger id="indicatorLevelId" className="w-full">
                     <SelectValue />
@@ -217,6 +275,49 @@ export function KqFormDialog({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Depends on</Label>
+              <p className="text-xs text-muted-foreground">
+                Other key questions this one depends on — limited to
+                indicator levels at or before its own.
+              </p>
+              {dependsOnCandidatesByLevel.size === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No earlier-or-same-level key questions to depend on yet.
+                </p>
+              ) : (
+                <div className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-md border border-input p-2">
+                  {sortedLevelsForPicker.map((level) => {
+                    const candidates = dependsOnCandidatesByLevel.get(level.id)
+                    if (!candidates || candidates.length === 0) return null
+                    return (
+                      <div key={level.id} className="flex flex-col gap-1">
+                        <span className="text-[11px] text-muted-foreground">
+                          {level.number_label}. {level.label}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {candidates.map((kq) => (
+                            <button
+                              key={kq.id}
+                              type="button"
+                              onClick={() => toggleDependsOn(kq.id)}
+                              className={
+                                form.dependsOnKqIds.includes(kq.id)
+                                  ? "rounded-full bg-foreground px-2.5 py-1 text-[11px] text-background"
+                                  : "rounded-full border border-input px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+                              }
+                            >
+                              {kq.kq_number}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">

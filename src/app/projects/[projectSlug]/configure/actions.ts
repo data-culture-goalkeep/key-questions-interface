@@ -83,14 +83,19 @@ export async function createIndicatorLevel(
     -1
   )
 
-  const { error } = await supabase.from("indicator_levels").insert({
-    project_id: projectId,
-    key,
-    label: input.label,
-    number_label: input.numberLabel,
-    sequence: maxSequence + 1,
-  })
+  const { data, error } = await supabase
+    .from("indicator_levels")
+    .insert({
+      project_id: projectId,
+      key,
+      label: input.label,
+      number_label: input.numberLabel,
+      sequence: maxSequence + 1,
+    })
+    .select("id")
+    .single()
   if (error) throw error
+  return data.id as string
 }
 
 export async function updateIndicatorLevel(
@@ -150,4 +155,17 @@ export async function moveIndicatorLevel(
       .update({ sequence: a.sequence })
       .eq("id", b.id),
   ])
+}
+
+// Sets every level's sequence to its index in the given order, in one
+// batch — mirrors setRanking's "submit the whole final order at once"
+// shape (prioritize/actions.ts), used by Configure's page-wide save after
+// the local draft's reordering, adds, and deletes are reconciled.
+export async function reorderIndicatorLevels(orderedLevelIds: string[]) {
+  const supabase = await requireFacilitatorClient()
+  await Promise.all(
+    orderedLevelIds.map((id, index) =>
+      supabase.from("indicator_levels").update({ sequence: index }).eq("id", id)
+    )
+  )
 }
