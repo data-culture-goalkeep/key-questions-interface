@@ -40,16 +40,9 @@ export async function updateSession(request: NextRequest) {
   // was silently falling back to a network fetch on every request, negating
   // getClaims()'s benefit in production despite it working locally. See
   // GitHub issue #12.
-  // TEMP diagnostic: the HAR from the Vercel preview showed ~500-650ms of
-  // server wait per navigation even with the embedded JWKS, which measured
-  // at 1-12ms in isolation — this timing header will tell us whether that
-  // gap is really in this call or somewhere else (cold start, region
-  // latency). Remove once diagnosed.
-  const claimsStart = Date.now()
   const { data } = await supabase.auth.getClaims(undefined, {
     jwks: SUPABASE_JWKS,
   })
-  const claimsMs = Date.now() - claimsStart
   const claims = data?.claims
 
   const isPublicPath = PUBLIC_PATHS.some((p) =>
@@ -62,6 +55,5 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  supabaseResponse.headers.set("Server-Timing", `claims;dur=${claimsMs}`)
   return supabaseResponse
 }
