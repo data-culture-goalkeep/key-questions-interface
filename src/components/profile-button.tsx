@@ -21,6 +21,15 @@ export function ProfileButton({
     .charAt(0)
     .toUpperCase()
 
+  const expiryLabel = userContext.expiresAt
+    ? new Date(userContext.expiresAt * 1000).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -51,6 +60,11 @@ export function ProfileButton({
               {userContext.role}
             </Badge>
           </span>
+          {expiryLabel && (
+            <span className="text-[11px] text-muted-foreground">
+              Login expires {expiryLabel}
+            </span>
+          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <form action="/sign-out" method="post" className="px-1 py-1">
