@@ -38,6 +38,7 @@ import {
   type AreaOfEnquiry,
   type IndicatorLevel,
   type KeyQuestion,
+  type KeyQuestionLink,
 } from "@/lib/types"
 import { ProjectDataGate, useProjectData } from "../project-data-provider"
 import {
@@ -54,6 +55,17 @@ import {
 } from "./actions"
 import { KqFormDialog } from "./kq-form-dialog"
 
+// Ids of other KQs this one depends on, derived from the project's links.
+function dependsOnIdsForKq(kqId: string, links: KeyQuestionLink[]): string[] {
+  return links
+    .filter(
+      (l) =>
+        l.relationship_type === "depends_on" &&
+        (l.key_question_id_a === kqId || l.key_question_id_b === kqId)
+    )
+    .map((l) => (l.key_question_id_a === kqId ? l.key_question_id_b : l.key_question_id_a))
+}
+
 export function ManageView() {
   return (
     <ProjectDataGate skeletonRows={6}>
@@ -66,6 +78,7 @@ export function ManageView() {
             areas={data.areas}
             keyQuestions={data.keyQuestions}
             indicatorLevels={data.indicatorLevels}
+            links={data.links}
           />
         )
       }
@@ -89,11 +102,13 @@ function ManageViewInner({
   areas,
   keyQuestions,
   indicatorLevels,
+  links,
 }: {
   projectId: string
   areas: AreaOfEnquiry[]
   keyQuestions: KeyQuestion[]
   indicatorLevels: IndicatorLevel[]
+  links: KeyQuestionLink[]
 }) {
   const { refresh } = useProjectData()
   const [, startTransition] = React.useTransition()
@@ -142,6 +157,8 @@ function ManageViewInner({
           area={area}
           areas={areas}
           keyQuestions={kqsByArea.get(area.id) ?? []}
+          allKeyQuestions={keyQuestions}
+          links={links}
           indicatorLevels={indicatorLevels}
           isFirst={areaIndex === 0}
           isLast={areaIndex === areas.length - 1}
@@ -195,6 +212,8 @@ function AreaSection({
   area,
   areas,
   keyQuestions,
+  allKeyQuestions,
+  links,
   indicatorLevels,
   isFirst,
   isLast,
@@ -205,6 +224,8 @@ function AreaSection({
   area: AreaOfEnquiry
   areas: AreaOfEnquiry[]
   keyQuestions: KeyQuestion[]
+  allKeyQuestions: KeyQuestion[]
+  links: KeyQuestionLink[]
   indicatorLevels: IndicatorLevel[]
   isFirst: boolean
   isLast: boolean
@@ -336,6 +357,8 @@ function AreaSection({
             projectId={projectId}
             areas={areas}
             kq={kq}
+            allKeyQuestions={allKeyQuestions}
+            links={links}
             indicatorLevels={indicatorLevels}
             isFirst={kqIndex === 0}
             isLast={kqIndex === sorted.length - 1}
@@ -349,6 +372,7 @@ function AreaSection({
         <KqFormDialog
           areas={areas}
           indicatorLevels={indicatorLevels}
+          allKeyQuestions={allKeyQuestions}
           defaultAreaId={area.id}
           onSubmit={async (input: KeyQuestionInput) => {
             await createKeyQuestion(projectId, input)
@@ -370,6 +394,8 @@ function KqRow({
   projectId,
   areas,
   kq,
+  allKeyQuestions,
+  links,
   indicatorLevels,
   isFirst,
   isLast,
@@ -379,6 +405,8 @@ function KqRow({
   projectId: string
   areas: AreaOfEnquiry[]
   kq: KeyQuestion
+  allKeyQuestions: KeyQuestion[]
+  links: KeyQuestionLink[]
   indicatorLevels: IndicatorLevel[]
   isFirst: boolean
   isLast: boolean
@@ -460,7 +488,9 @@ function KqRow({
         <KqFormDialog
           areas={areas}
           indicatorLevels={indicatorLevels}
+          allKeyQuestions={allKeyQuestions}
           keyQuestion={kq}
+          initialDependsOnKqIds={dependsOnIdsForKq(kq.id, links)}
           onSubmit={async (input: KeyQuestionInput) => {
             await updateKeyQuestion(projectId, kq.id, input)
             await refresh()

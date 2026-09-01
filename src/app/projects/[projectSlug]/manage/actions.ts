@@ -105,6 +105,31 @@ export interface KeyQuestionInput {
   dataAvailabilityNote: string
   priority: Priority
   reasonForPriority: string
+  // Other key_questions.id values this one depends on — synced into
+  // key_question_links as relationship_type "depends_on". Direction isn't
+  // stored (the Map view infers upstream/downstream purely from each KQ's
+  // indicator level position), so it doesn't matter which KQ's form
+  // created the link.
+  dependsOnKqIds: string[]
+}
+
+// Inserts one key_question_links row per id in dependsOnKqIds, with this
+// KQ as key_question_id_a — used for a freshly created KQ, which has no
+// existing links to diff against.
+async function insertDependsOnLinks(
+  supabase: Awaited<ReturnType<typeof requireFacilitatorClient>>,
+  kqId: string,
+  dependsOnKqIds: string[]
+) {
+  if (dependsOnKqIds.length === 0) return
+  const { error } = await supabase.from("key_question_links").insert(
+    dependsOnKqIds.map((otherId) => ({
+      key_question_id_a: kqId,
+      key_question_id_b: otherId,
+      relationship_type: "depends_on" as const,
+    }))
+  )
+  if (error) throw error
 }
 
 export async function createKeyQuestion(
@@ -117,23 +142,29 @@ export async function createKeyQuestion(
     .select("id", { count: "exact", head: true })
     .eq("area_of_enquiry_id", input.areaOfEnquiryId)
 
-  const { error } = await supabase.from("key_questions").insert({
-    project_id: projectId,
-    area_of_enquiry_id: input.areaOfEnquiryId,
-    kq_number: input.kqNumber,
-    question_text: input.questionText,
-    short_name: input.shortName,
-    indicator_level_id: input.indicatorLevelId,
-    indicator_definition: input.indicatorDefinition,
-    action_text: input.actionText,
-    primary_user: input.primaryUser,
-    data_availability_status: input.dataAvailabilityStatus,
-    data_availability_note: input.dataAvailabilityNote,
-    priority: input.priority,
-    reason_for_priority: input.reasonForPriority,
-    sequence: count ?? 0,
-  })
+  const { data, error } = await supabase
+    .from("key_questions")
+    .insert({
+      project_id: projectId,
+      area_of_enquiry_id: input.areaOfEnquiryId,
+      kq_number: input.kqNumber,
+      question_text: input.questionText,
+      short_name: input.shortName,
+      indicator_level_id: input.indicatorLevelId,
+      indicator_definition: input.indicatorDefinition,
+      action_text: input.actionText,
+      primary_user: input.primaryUser,
+      data_availability_status: input.dataAvailabilityStatus,
+      data_availability_note: input.dataAvailabilityNote,
+      priority: input.priority,
+      reason_for_priority: input.reasonForPriority,
+      sequence: count ?? 0,
+    })
+    .select("id")
+    .single()
   if (error) throw error
+
+  await insertDependsOnLinks(supabase, data.id, input.dependsOnKqIds)
 }
 
 export async function updateKeyQuestion(
@@ -160,6 +191,36 @@ export async function updateKeyQuestion(
     })
     .eq("id", kqId)
   if (error) throw error
+
+  // Re-queried server-side (not trusting client-passed prior state) to
+  // avoid a race with a concurrent edit landing between page load and this
+  // save.
+  const { data: existingLinks, error: linksError } = await supabase
+    .from("key_question_links")
+    .select("id, key_question_id_a, key_question_id_b")
+    .eq("relationship_type", "depends_on")
+    .or(`key_question_id_a.eq.${kqId},key_question_id_b.eq.${kqId}`)
+  if (linksError) throw linksError
+
+  const currentDependsOn = new Map(
+    (existingLinks ?? []).map((l) => [
+      l.key_question_id_a === kqId ? l.key_question_id_b : l.key_question_id_a,
+      l.id,
+    ])
+  )
+  const nextDependsOn = new Set(input.dependsOnKqIds)
+
+  const toRemove = [...currentDependsOn.entries()]
+    .filter(([otherId]) => !nextDependsOn.has(otherId))
+    .map(([, linkId]) => linkId)
+  const toAdd = input.dependsOnKqIds.filter((id) => !currentDependsOn.has(id))
+
+  await Promise.all([
+    toRemove.length > 0
+      ? supabase.from("key_question_links").delete().in("id", toRemove)
+      : Promise.resolve(),
+    insertDependsOnLinks(supabase, kqId, toAdd),
+  ])
 }
 
 export async function deleteKeyQuestion(projectId: string, kqId: string) {

@@ -28,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { PageSkeleton } from "@/components/page-skeleton"
+import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import {
   PRIORITIZATION_METHODOLOGIES,
@@ -41,7 +42,7 @@ import { ProjectDataGate, useProjectData } from "../project-data-provider"
 import {
   createIndicatorLevel,
   deleteIndicatorLevel,
-  moveIndicatorLevel,
+  reorderIndicatorLevels,
   setProjectLogo,
   setProjectMode,
   updateIndicatorLevel,
@@ -76,6 +77,56 @@ function FacilitatorRedirect({ projectSlug }: { projectSlug: string }) {
   return <PageSkeleton rows={4} />
 }
 
+// --- Draft model ------------------------------------------------------
+//
+// Nothing on this page hits Supabase until "Save changes" is clicked.
+// Every control mutates this local draft; Save diffs it against the
+// server-derived baseline and issues only the calls that changed.
+
+type DraftLevel =
+  | { kind: "existing"; id: string; label: string; numberLabel: string; deleted: boolean }
+  | { kind: "new"; tempId: string; label: string; numberLabel: string }
+
+type DraftLogo =
+  | { kind: "unchanged" }
+  | { kind: "removed" }
+  | { kind: "replaced"; file: File; previewUrl: string }
+
+interface ConfigureDraft {
+  mode: ProjectMode
+  name: string
+  clientName: string
+  methodology: PrioritizationMethodology
+  levels: DraftLevel[]
+  logo: DraftLogo
+}
+
+function levelKey(l: DraftLevel) {
+  return l.kind === "existing" ? l.id : l.tempId
+}
+
+function makeDraft(
+  project: Project,
+  indicatorLevels: IndicatorLevel[]
+): ConfigureDraft {
+  return {
+    mode: project.mode,
+    name: project.name,
+    clientName: project.client_name,
+    methodology: project.prioritization_methodology,
+    levels: [...indicatorLevels]
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((l) => ({
+        kind: "existing",
+        id: l.id,
+        label: l.label,
+        numberLabel: l.number_label,
+        deleted: false,
+      })),
+    logo: { kind: "unchanged" },
+  }
+}
+
 function ConfigureViewInner({
   project,
   indicatorLevels,
@@ -84,51 +135,198 @@ function ConfigureViewInner({
   indicatorLevels: IndicatorLevel[]
 }) {
   const { refresh } = useProjectData()
-  const [, startTransition] = React.useTransition()
+  const [saving, setSaving] = React.useState(false)
+  const [dirty, setDirty] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  function run(fn: () => Promise<void>) {
+  // Derived fresh from server data on every render, same self-healing
+  // pattern as prioritize-view.tsx's computedOrder — local edits only
+  // exist in draftOverride, which updateDraft() seeds from this the first
+  // time it's touched.
+  const computedDraft = React.useMemo(
+    () => makeDraft(project, indicatorLevels),
+    [project, indicatorLevels]
+  )
+  const [draftOverride, setDraftOverride] = React.useState<ConfigureDraft | null>(
+    null
+  )
+  const draft = dirty && draftOverride ? draftOverride : computedDraft
+
+  function updateDraft(updater: (d: ConfigureDraft) => ConfigureDraft) {
+    setDraftOverride((prev) => updater(prev ?? draft))
+    setDirty(true)
+  }
+
+  const visibleLevels = draft.levels.filter(
+    (l) => !(l.kind === "existing" && l.deleted)
+  )
+  const canSave =
+    dirty &&
+    !saving &&
+    draft.name.trim() !== "" &&
+    draft.clientName.trim() !== "" &&
+    visibleLevels.every((l) => l.label.trim() !== "" && l.numberLabel.trim() !== "")
+
+  async function handleSave() {
+    setSaving(true)
     setError(null)
-    startTransition(async () => {
-      try {
-        await fn()
-        await refresh()
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "That didn't go through.")
+    try {
+      const originalById = new Map(
+        indicatorLevels.map((l) => [l.id, l])
+      )
+
+      const toDelete = draft.levels.filter(
+        (l): l is Extract<DraftLevel, { kind: "existing" }> =>
+          l.kind === "existing" && l.deleted
+      )
+      const toUpdate = draft.levels.filter(
+        (l): l is Extract<DraftLevel, { kind: "existing" }> =>
+          l.kind === "existing" &&
+          !l.deleted &&
+          (originalById.get(l.id)?.label !== l.label ||
+            originalById.get(l.id)?.number_label !== l.numberLabel)
+      )
+      await Promise.all([
+        ...toDelete.map((l) => deleteIndicatorLevel(l.id)),
+        ...toUpdate.map((l) =>
+          updateIndicatorLevel(l.id, {
+            label: l.label,
+            numberLabel: l.numberLabel,
+          })
+        ),
+      ])
+
+      const toCreate = draft.levels.filter(
+        (l): l is Extract<DraftLevel, { kind: "new" }> => l.kind === "new"
+      )
+      const createdEntries = await Promise.all(
+        toCreate.map(
+          async (l) =>
+            [
+              l.tempId,
+              await createIndicatorLevel(project.id, {
+                label: l.label,
+                numberLabel: l.numberLabel,
+              }),
+            ] as const
+        )
+      )
+      const createdIds = new Map(createdEntries)
+
+      const finalOrder = visibleLevels.map((l) =>
+        l.kind === "existing" ? l.id : (createdIds.get(l.tempId) ?? l.tempId)
+      )
+      await reorderIndicatorLevels(finalOrder)
+
+      if (draft.mode !== project.mode) {
+        await setProjectMode(project.id, draft.mode)
       }
-    })
+      if (
+        draft.name !== project.name ||
+        draft.clientName !== project.client_name ||
+        draft.methodology !== project.prioritization_methodology
+      ) {
+        await updateProjectDetails(project.id, {
+          name: draft.name.trim(),
+          clientName: draft.clientName.trim(),
+          prioritizationMethodology: draft.methodology,
+        })
+      }
+
+      if (draft.logo.kind === "removed") {
+        await setProjectLogo(project.id, null)
+      } else if (draft.logo.kind === "replaced") {
+        const supabase = createClient()
+        const path = `${project.id}/logo-${Date.now()}-${draft.logo.file.name}`
+        const { error: uploadError } = await supabase.storage
+          .from("project-assets")
+          .upload(path, draft.logo.file, { upsert: true })
+        if (uploadError) throw uploadError
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("project-assets").getPublicUrl(path)
+        await setProjectLogo(project.id, publicUrl)
+      }
+
+      setDirty(false)
+      setDraftOverride(null)
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That didn't save — try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleDiscard() {
+    setDirty(false)
+    setDraftOverride(null)
+    setError(null)
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-4">
       <div className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold">Configure project</h2>
         <p className="text-sm text-muted-foreground">
           Project details, indicator levels, prioritization methodology, and
-          the NGO logo.
+          the NGO logo — nothing here is saved until you hit Save changes.
         </p>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <ProjectModeCard project={project} run={run} />
-      <ProjectDetailsCard project={project} run={run} />
-      <IndicatorLevelsCard
-        projectId={project.id}
-        indicatorLevels={indicatorLevels}
-        run={run}
+      <ProjectModeCard
+        mode={draft.mode}
+        onChange={(mode) => updateDraft((d) => ({ ...d, mode }))}
       />
-      <LogoCard project={project} run={run} />
+      <ProjectDetailsCard
+        name={draft.name}
+        clientName={draft.clientName}
+        methodology={draft.methodology}
+        onChange={(fields) => updateDraft((d) => ({ ...d, ...fields }))}
+      />
+      <IndicatorLevelsCard
+        levels={draft.levels}
+        onChange={(levels) => updateDraft((d) => ({ ...d, levels }))}
+      />
+      <LogoCard
+        currentLogoUrl={project.logo_url}
+        logo={draft.logo}
+        onChange={(logo) => updateDraft((d) => ({ ...d, logo }))}
+      />
+
+      <div
+        className={cn(
+          "sticky bottom-4 flex items-center gap-3 self-start rounded-lg border border-border bg-background p-3 shadow-sm",
+          !dirty && "opacity-0"
+        )}
+      >
+        <Button type="button" disabled={!canSave} onClick={handleSave}>
+          {saving ? "Saving…" : "Save changes"}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={!dirty || saving}
+          onClick={handleDiscard}
+        >
+          Discard changes
+        </Button>
+        {dirty && !saving && (
+          <span className="text-xs text-muted-foreground">Unsaved changes</span>
+        )}
+      </div>
     </div>
   )
 }
 
 function ProjectModeCard({
-  project,
-  run,
+  mode,
+  onChange,
 }: {
-  project: Project
-  run: (fn: () => Promise<void>) => void
+  mode: ProjectMode
+  onChange: (mode: ProjectMode) => void
 }) {
   return (
     <Card>
@@ -143,19 +341,19 @@ function ProjectModeCard({
           locked key questions become rankable either way.
         </p>
         <div className="flex w-fit overflow-hidden rounded-md border border-input">
-          {(["review", "prioritization"] as ProjectMode[]).map((mode) => (
+          {(["review", "prioritization"] as ProjectMode[]).map((m) => (
             <button
-              key={mode}
+              key={m}
               type="button"
-              disabled={project.mode === mode}
-              onClick={() => run(() => setProjectMode(project.id, mode))}
+              disabled={mode === m}
+              onClick={() => onChange(m)}
               className={
-                project.mode === mode
+                mode === m
                   ? "bg-foreground px-3 py-1.5 text-sm text-background"
                   : "px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
               }
             >
-              {mode === "review" ? "Review" : "Prioritization"}
+              {m === "review" ? "Review" : "Prioritization"}
             </button>
           ))}
         </div>
@@ -165,29 +363,18 @@ function ProjectModeCard({
 }
 
 function ProjectDetailsCard({
-  project,
-  run,
+  name,
+  clientName,
+  methodology,
+  onChange,
 }: {
-  project: Project
-  run: (fn: () => Promise<void>) => void
+  name: string
+  clientName: string
+  methodology: PrioritizationMethodology
+  onChange: (
+    fields: Partial<Pick<ConfigureDraft, "name" | "clientName" | "methodology">>
+  ) => void
 }) {
-  const [name, setName] = React.useState(project.name)
-  const [clientName, setClientName] = React.useState(project.client_name)
-  const [methodology, setMethodology] =
-    React.useState<PrioritizationMethodology>(
-      project.prioritization_methodology
-    )
-
-  function save() {
-    run(() =>
-      updateProjectDetails(project.id, {
-        name: name.trim(),
-        clientName: clientName.trim(),
-        prioritizationMethodology: methodology,
-      })
-    )
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -200,7 +387,7 @@ function ProjectDetailsCard({
             <Input
               id="projectName"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => onChange({ name: e.target.value })}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -208,7 +395,7 @@ function ProjectDetailsCard({
             <Input
               id="clientName"
               value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
+              onChange={(e) => onChange({ clientName: e.target.value })}
             />
           </div>
         </div>
@@ -217,7 +404,9 @@ function ProjectDetailsCard({
           <Label htmlFor="methodology">Prioritization methodology</Label>
           <Select
             value={methodology}
-            onValueChange={(v) => setMethodology(v as PrioritizationMethodology)}
+            onValueChange={(v) =>
+              onChange({ methodology: v as PrioritizationMethodology })
+            }
           >
             <SelectTrigger id="methodology" className="w-full sm:w-72">
               <SelectValue />
@@ -232,44 +421,66 @@ function ProjectDetailsCard({
             </SelectContent>
           </Select>
         </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-fit"
-          disabled={!name.trim() || !clientName.trim()}
-          onClick={save}
-        >
-          Save details
-        </Button>
       </CardContent>
     </Card>
   )
 }
 
 function IndicatorLevelsCard({
-  projectId,
-  indicatorLevels,
-  run,
+  levels,
+  onChange,
 }: {
-  projectId: string
-  indicatorLevels: IndicatorLevel[]
-  run: (fn: () => Promise<void>) => void
+  levels: DraftLevel[]
+  onChange: (levels: DraftLevel[]) => void
 }) {
-  const sorted = [...indicatorLevels].sort((a, b) => a.sequence - b.sequence)
+  const visible = levels.filter((l) => !(l.kind === "existing" && l.deleted))
   const [newLabel, setNewLabel] = React.useState("")
   const [newNumberLabel, setNewNumberLabel] = React.useState("")
 
   function addLevel() {
     if (!newLabel.trim() || !newNumberLabel.trim()) return
-    run(() =>
-      createIndicatorLevel(projectId, {
+    onChange([
+      ...levels,
+      {
+        kind: "new",
+        tempId: crypto.randomUUID(),
         label: newLabel.trim(),
         numberLabel: newNumberLabel.trim(),
-      })
-    )
+      },
+    ])
     setNewLabel("")
     setNewNumberLabel("")
+  }
+
+  function moveLevel(key: string, direction: "up" | "down") {
+    const visibleIndex = visible.findIndex((l) => levelKey(l) === key)
+    const swapWith = direction === "up" ? visibleIndex - 1 : visibleIndex + 1
+    if (visibleIndex === -1 || swapWith < 0 || swapWith >= visible.length) return
+    const a = visible[visibleIndex]
+    const b = visible[swapWith]
+    const fullIndexA = levels.findIndex((l) => levelKey(l) === levelKey(a))
+    const fullIndexB = levels.findIndex((l) => levelKey(l) === levelKey(b))
+    const next = [...levels]
+    ;[next[fullIndexA], next[fullIndexB]] = [next[fullIndexB], next[fullIndexA]]
+    onChange(next)
+  }
+
+  function deleteLevel(key: string) {
+    onChange(
+      levels
+        .map((l) =>
+          l.kind === "existing" && levelKey(l) === key
+            ? { ...l, deleted: true }
+            : l
+        )
+        .filter((l) => !(l.kind === "new" && levelKey(l) === key))
+    )
+  }
+
+  function editLevel(key: string, label: string, numberLabel: string) {
+    onChange(
+      levels.map((l) => (levelKey(l) === key ? { ...l, label, numberLabel } : l))
+    )
   }
 
   return (
@@ -284,14 +495,17 @@ function IndicatorLevelsCard({
           new &quot;4B&quot; row.
         </p>
 
-        {sorted.map((level, index) => (
+        {visible.map((level, index) => (
           <IndicatorLevelRow
-            key={level.id}
-            projectId={projectId}
+            key={levelKey(level)}
             level={level}
             isFirst={index === 0}
-            isLast={index === sorted.length - 1}
-            run={run}
+            isLast={index === visible.length - 1}
+            onMove={(direction) => moveLevel(levelKey(level), direction)}
+            onDelete={() => deleteLevel(levelKey(level))}
+            onEdit={(label, numberLabel) =>
+              editLevel(levelKey(level), label, numberLabel)
+            }
           />
         ))}
 
@@ -334,29 +548,28 @@ function IndicatorLevelsCard({
 }
 
 function IndicatorLevelRow({
-  projectId,
   level,
   isFirst,
   isLast,
-  run,
+  onMove,
+  onDelete,
+  onEdit,
 }: {
-  projectId: string
-  level: IndicatorLevel
+  level: DraftLevel
   isFirst: boolean
   isLast: boolean
-  run: (fn: () => Promise<void>) => void
+  onMove: (direction: "up" | "down") => void
+  onDelete: () => void
+  onEdit: (label: string, numberLabel: string) => void
 }) {
   const [editing, setEditing] = React.useState(false)
   const [label, setLabel] = React.useState(level.label)
-  const [numberLabel, setNumberLabel] = React.useState(level.number_label)
+  const [numberLabel, setNumberLabel] = React.useState(level.numberLabel)
 
   function save() {
-    run(() =>
-      updateIndicatorLevel(level.id, {
-        label: label.trim(),
-        numberLabel: numberLabel.trim(),
-      })
-    )
+    if (label.trim() && numberLabel.trim()) {
+      onEdit(label.trim(), numberLabel.trim())
+    }
     setEditing(false)
   }
 
@@ -384,7 +597,7 @@ function IndicatorLevelRow({
             variant="ghost"
             onClick={() => {
               setLabel(level.label)
-              setNumberLabel(level.number_label)
+              setNumberLabel(level.numberLabel)
               setEditing(false)
             }}
           >
@@ -394,13 +607,13 @@ function IndicatorLevelRow({
       ) : (
         <>
           <span className="flex-1 text-sm">
-            {level.number_label}. {level.label}
+            {level.numberLabel}. {level.label}
           </span>
           <Button
             variant="ghost"
             size="icon-sm"
             disabled={isFirst}
-            onClick={() => run(() => moveIndicatorLevel(projectId, level.id, "up"))}
+            onClick={() => onMove("up")}
             aria-label="Move up"
           >
             <ChevronUp className="size-3.5" />
@@ -409,7 +622,7 @@ function IndicatorLevelRow({
             variant="ghost"
             size="icon-sm"
             disabled={isLast}
-            onClick={() => run(() => moveIndicatorLevel(projectId, level.id, "down"))}
+            onClick={() => onMove("down")}
             aria-label="Move down"
           >
             <ChevronDown className="size-3.5" />
@@ -434,17 +647,13 @@ function IndicatorLevelRow({
                   Remove &quot;{level.label}&quot;?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Fails if any key question still uses this level — reassign
-                  them in Manage first.
+                  Removed when you save. Fails to save if any key question
+                  still uses this level — reassign them in Manage first.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => run(() => deleteIndicatorLevel(level.id))}
-                >
-                  Remove
-                </AlertDialogAction>
+                <AlertDialogAction onClick={onDelete}>Remove</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -455,37 +664,28 @@ function IndicatorLevelRow({
 }
 
 function LogoCard({
-  project,
-  run,
+  currentLogoUrl,
+  logo,
+  onChange,
 }: {
-  project: Project
-  run: (fn: () => Promise<void>) => void
+  currentLogoUrl: string | null
+  logo: DraftLogo
+  onChange: (logo: DraftLogo) => void
 }) {
-  const [uploading, setUploading] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setUploading(true)
-    try {
-      const supabase = createClient()
-      const path = `${project.id}/logo-${Date.now()}-${file.name}`
-      const { error: uploadError } = await supabase.storage
-        .from("project-assets")
-        .upload(path, file, { upsert: true })
-      if (uploadError) throw uploadError
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("project-assets").getPublicUrl(path)
-
-      run(() => setProjectLogo(project.id, publicUrl))
-    } finally {
-      setUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ""
-    }
+    onChange({ kind: "replaced", file, previewUrl: URL.createObjectURL(file) })
   }
+
+  const displayUrl =
+    logo.kind === "replaced"
+      ? logo.previewUrl
+      : logo.kind === "removed"
+        ? null
+        : currentLogoUrl
 
   return (
     <Card>
@@ -493,10 +693,10 @@ function LogoCard({
         <CardTitle>NGO logo</CardTitle>
       </CardHeader>
       <CardContent className="flex items-center gap-4">
-        {project.logo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element -- arbitrary Storage-hosted image, not worth Next/Image config for a small preview
+        {displayUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- arbitrary Storage-hosted (or local blob preview) image, not worth Next/Image config for a small preview
           <img
-            src={project.logo_url}
+            src={displayUrl}
             alt=""
             className="size-16 rounded border border-border object-contain"
           />
@@ -513,16 +713,18 @@ function LogoCard({
             onChange={handleFileChange}
             className="text-sm"
           />
-          {uploading && (
-            <p className="text-xs text-muted-foreground">Uploading…</p>
+          {logo.kind === "replaced" && (
+            <p className="text-xs text-muted-foreground">
+              New logo selected — uploads when you save.
+            </p>
           )}
-          {project.logo_url && (
+          {displayUrl && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="w-fit"
-              onClick={() => run(() => setProjectLogo(project.id, null))}
+              onClick={() => onChange({ kind: "removed" })}
             >
               Remove logo
             </Button>
