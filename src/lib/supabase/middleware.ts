@@ -28,15 +28,20 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // getClaims() verifies the JWT locally against the project's cached JWKS
+  // (this project uses asymmetric signing keys) instead of getUser()'s
+  // network round trip to the Auth server. Middleware runs on every request
+  // — including every client-side navigation between sibling project routes
+  // and every <Link> prefetch — so getUser() here was adding a real network
+  // hop to every view switch. See GitHub issue #12.
+  const { data } = await supabase.auth.getClaims()
+  const claims = data?.claims
 
   const isPublicPath = PUBLIC_PATHS.some((p) =>
     request.nextUrl.pathname.startsWith(p)
   )
 
-  if (!user && !isPublicPath) {
+  if (!claims && !isPublicPath) {
     const url = request.nextUrl.clone()
     url.pathname = "/sign-in"
     return NextResponse.redirect(url)
