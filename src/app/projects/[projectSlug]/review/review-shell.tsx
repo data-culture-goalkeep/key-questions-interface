@@ -108,7 +108,7 @@ function ReviewShellInner({
         </p>
       </div>
 
-      <ReviewHero keyQuestions={keyQuestions} />
+      <ReviewHero keyQuestions={keyQuestions} indicatorLevels={indicatorLevels} />
 
       <div className="flex flex-col gap-6 sm:flex-row">
         <ReviewSidebar

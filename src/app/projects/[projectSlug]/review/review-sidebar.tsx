@@ -29,17 +29,29 @@ export const EMPTY_REVIEW_FILTERS: ReviewFilters = {
 function FilterChip({
   active,
   onClick,
+  fullWidth,
   children,
 }: {
   active: boolean
   onClick: () => void
+  // Priority/Status chips wrap in a row and should stay content-sized, but
+  // the Areas-of-Enquiry list is a single column of often much longer
+  // labels — without an explicit width to truncate against, a long area
+  // name just grows the chip past the sidebar's fixed width and overlaps
+  // the content next to it (Badge defaults to `w-fit`, and a flex item's
+  // truncate does nothing without a bounding width).
+  fullWidth?: boolean
   children: React.ReactNode
 }) {
   return (
-    <button type="button" onClick={onClick}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn("text-left", fullWidth && "block w-full")}
+    >
       <Badge
         variant={active ? "default" : "outline"}
-        className="cursor-pointer text-[11px]"
+        className={cn("cursor-pointer text-[11px]", fullWidth && "w-full")}
       >
         {children}
       </Badge>
@@ -197,12 +209,13 @@ export function ReviewSidebar({
                 key={area.id}
                 active={filters.areaId === area.id}
                 onClick={() => selectArea(area.id)}
+                fullWidth
               >
-                <span className="flex items-center gap-1 text-left">
+                <span className="flex min-w-0 items-center gap-1 text-left">
                   {area.area_number && (
-                    <span className="font-mono">{area.area_number}</span>
+                    <span className="shrink-0 font-mono">{area.area_number}</span>
                   )}
-                  <span className="truncate">{area.name}</span>
+                  <span className="min-w-0 flex-1 truncate">{area.name}</span>
                 </span>
               </FilterChip>
             ))}
