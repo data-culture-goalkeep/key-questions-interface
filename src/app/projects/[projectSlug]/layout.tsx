@@ -1,5 +1,6 @@
 import { ProjectDataProvider } from "./project-data-provider"
 import { ProjectHeader } from "./project-header"
+import { ProjectSidebar } from "./project-sidebar"
 
 // No Supabase calls here at all — project + user identity now live in the
 // same client-side cache as the key-question data (ProjectDataProvider), so
@@ -17,9 +18,10 @@ export default async function ProjectLayout({
   return (
     <ProjectDataProvider projectSlug={projectSlug}>
       <div className="flex flex-1 flex-col">
-        <ProjectHeader projectSlug={projectSlug} />
-        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-          {children}
+        <ProjectHeader />
+        <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col sm:flex-row">
+          <ProjectSidebar projectSlug={projectSlug} />
+          <div className="min-w-0 flex-1 px-4 py-6 sm:px-6">{children}</div>
         </div>
       </div>
     </ProjectDataProvider>

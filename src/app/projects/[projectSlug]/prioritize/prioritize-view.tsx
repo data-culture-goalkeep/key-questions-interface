@@ -1,18 +1,33 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDown, ChevronUp, Lock } from "lucide-react"
+import { ChevronDown, ChevronUp, GripVertical, Lock } from "lucide-react"
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { PriorityIndicator } from "@/components/priority-indicator"
 import { cn } from "@/lib/utils"
+import { stageColorsForLevel, type StageColorTokens } from "@/lib/stage-colors"
 import {
-  priorityLabel,
-  PRIORITY_BADGE_VARIANT,
   type IndicatorLevel,
   type KeyQuestion,
-  type Priority,
   type VoteRow,
 } from "@/lib/types"
 
@@ -83,6 +98,11 @@ function PrioritizeViewInner({
   const [saving, setSaving] = React.useState(false)
   const [dirty, setDirty] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  // One shared sensor set, reused by every level's DndContext below —
+  // hooks can't be called per-item inside the sortedLevels.map() render loop.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
+  )
 
   const kqById = React.useMemo(() => {
     const map = new Map<string, KeyQuestion>()
@@ -102,11 +122,11 @@ function PrioritizeViewInner({
   )
 
   // Derived fresh from server data on every render; local edits only exist
-  // in localOrderOverride, which move() seeds from this the first time it's
-  // touched. That keeps this in sync with fresh server data (e.g. a
-  // facilitator locking/unlocking a KQ elsewhere) automatically whenever
-  // there's no unsaved local edit to protect, with no effect-based
-  // resync needed.
+  // in localOrderOverride, which move() and handleDragEnd() both seed from
+  // this the first time either is touched. That keeps this in sync with
+  // fresh server data (e.g. a facilitator locking/unlocking a KQ elsewhere)
+  // automatically whenever there's no unsaved local edit to protect, with
+  // no effect-based resync needed.
   const computedOrder = React.useMemo(
     () => computeOrder(keyQuestions, sortedLevels, myRankByKqId),
     [keyQuestions, sortedLevels, myRankByKqId]
@@ -140,6 +160,25 @@ function PrioritizeViewInner({
     setDirty(true)
   }
 
+  // Drag-and-drop's onDragEnd — a second entry point into the same
+  // local-draft state move() already uses, so the chevron fallback and
+  // dragging can never desync (both just mutate localOrderOverride).
+  function handleDragEnd(levelId: string, event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setLocalOrderOverride((prev) => {
+      const base = prev ?? order
+      const current = base.get(levelId) ?? []
+      const oldIndex = current.indexOf(String(active.id))
+      const newIndex = current.indexOf(String(over.id))
+      if (oldIndex === -1 || newIndex === -1) return base
+      const map = new Map(base)
+      map.set(levelId, arrayMove(current, oldIndex, newIndex))
+      return map
+    })
+    setDirty(true)
+  }
+
   async function handleSave() {
     setSaving(true)
     setError(null)
@@ -162,11 +201,13 @@ function PrioritizeViewInner({
   return (
     <div className="flex flex-col gap-6 pb-4">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Prioritise key questions</h2>
+        <h2 className="font-display text-3xl font-semibold">
+          Prioritise key questions
+        </h2>
         <p className="text-sm text-muted-foreground">
           Rank locked key questions within each level, most important first.
-          Reorder freely, then hit Save — nothing is written until you do.
-          Your ranking is personal —{" "}
+          Drag to reorder, or use the chevrons, then hit Save — nothing is
+          written until you do. Your ranking is personal —{" "}
           {role === "facilitator"
             ? "the combined ranking below shows how everyone's rankings line up."
             : "a facilitator will combine everyone's rankings to shortlist the dashboard set."}
@@ -179,6 +220,7 @@ function PrioritizeViewInner({
         const allInLevel = kqsByLevel.get(level.id) ?? []
         if (allInLevel.length === 0) return null
 
+        const stage = stageColorsForLevel(level, sortedLevels)
         const orderedIds = order.get(level.id) ?? []
         const ordered = orderedIds
           .map((id) => kqById.get(id))
@@ -186,60 +228,36 @@ function PrioritizeViewInner({
         const excludedUnlocked = allInLevel.filter((kq) => !kq.is_locked)
 
         return (
-          <Card key={level.id}>
+          <Card key={level.id} style={{ borderLeft: `4px solid ${stage.cssVar}` }}>
             <CardHeader>
-              <CardTitle>
+              <CardTitle className="font-display text-xl font-semibold">
                 {level.number_label}. {level.label}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {ordered.map((kq, index) => (
-                <div
-                  key={kq.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-border p-3"
+              <DndContext
+                collisionDetection={closestCenter}
+                sensors={dndSensors}
+                onDragEnd={(event) => handleDragEnd(level.id, event)}
+              >
+                <SortableContext
+                  items={ordered.map((kq) => kq.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 w-5 shrink-0 text-sm font-medium text-muted-foreground">
-                      {index + 1}
-                    </span>
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant="secondary" className="font-mono">
-                          {kq.kq_number}
-                        </Badge>
-                        <Badge
-                          variant={
-                            PRIORITY_BADGE_VARIANT[kq.priority as Priority]
-                          }
-                        >
-                          {priorityLabel(kq.priority as Priority)}
-                        </Badge>
-                      </div>
-                      <p className="text-sm">{kq.question_text}</p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={index === 0}
-                      onClick={() => move(level.id, kq.id, "up")}
-                      aria-label="Rank higher"
-                    >
-                      <ChevronUp className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={index === ordered.length - 1}
-                      onClick={() => move(level.id, kq.id, "down")}
-                      aria-label="Rank lower"
-                    >
-                      <ChevronDown className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                  {ordered.map((kq, index) => (
+                    <RankRow
+                      key={kq.id}
+                      kq={kq}
+                      index={index}
+                      stage={stage}
+                      isFirst={index === 0}
+                      isLast={index === ordered.length - 1}
+                      onMoveUp={() => move(level.id, kq.id, "up")}
+                      onMoveDown={() => move(level.id, kq.id, "down")}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
 
               {ordered.length === 0 && (
                 <p className="text-xs text-muted-foreground">
@@ -270,12 +288,18 @@ function PrioritizeViewInner({
       })}
 
       <div
+        aria-hidden={!dirty}
         className={cn(
-          "sticky bottom-4 flex items-center gap-3 self-start rounded-lg border border-border bg-background p-3 shadow-sm",
+          "sticky bottom-4 flex items-center gap-3 self-start rounded-card border border-border bg-background p-3 shadow-[0_1px_3px_rgba(20,20,20,0.08)]",
           !dirty && "opacity-0"
         )}
       >
-        <Button type="button" disabled={!dirty || saving} onClick={handleSave}>
+        <Button
+          type="button"
+          disabled={!dirty || saving}
+          tabIndex={dirty ? undefined : -1}
+          onClick={handleSave}
+        >
           {saving ? "Saving…" : "Save ranking"}
         </Button>
         {dirty && !saving && (
@@ -288,6 +312,104 @@ function PrioritizeViewInner({
   )
 }
 
+function RankRow({
+  kq,
+  index,
+  stage,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
+}: {
+  kq: KeyQuestion
+  index: number
+  stage: StageColorTokens
+  isFirst: boolean
+  isLast: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: kq.id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-start justify-between gap-3 rounded-card bg-card p-3 shadow-[0_1px_3px_rgba(20,20,20,0.08)] ring-1 ring-border",
+        isDragging && "z-10 shadow-lg"
+      )}
+    >
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          className="mt-1 shrink-0 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          aria-label="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <span
+          className={cn(
+            "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+            stage.bg,
+            stage.fg
+          )}
+        >
+          {index + 1}
+        </span>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary" className="font-mono">
+              {kq.kq_number}
+            </Badge>
+            <PriorityIndicator priority={kq.priority} />
+          </div>
+          <p className="text-sm">{kq.question_text}</p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={isFirst}
+          onClick={onMoveUp}
+          aria-label="Rank higher"
+        >
+          <ChevronUp className="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={isLast}
+          onClick={onMoveDown}
+          aria-label="Rank lower"
+        >
+          <ChevronDown className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// No real voter identity is available client-side (only voter_id UUIDs, no
+// email/name join in the kq_navigator-scoped client) — stable-hashed
+// anonymous colour per voter instead of initials, so agreement/disagreement
+// is still visible at a glance without inventing identity that isn't there.
+const VOTER_COLORS = ["bg-gk-yellow", "bg-gk-coral", "bg-gk-teal", "bg-gk-blue"]
+function voterColorClass(voterId: string) {
+  let hash = 0
+  for (let i = 0; i < voterId.length; i++) hash = (hash * 31 + voterId.charCodeAt(i)) | 0
+  return VOTER_COLORS[Math.abs(hash) % VOTER_COLORS.length]
+}
+
 function CombinedRanking({
   keyQuestions,
   allVotes,
@@ -296,20 +418,20 @@ function CombinedRanking({
   allVotes: VoteRow[]
 }) {
   const combined = React.useMemo(() => {
-    const votesByKq = new Map<string, number[]>()
+    const votesByKq = new Map<string, VoteRow[]>()
     for (const v of allVotes) {
       const list = votesByKq.get(v.key_question_id) ?? []
-      list.push(v.rank_within_type)
+      list.push(v)
       votesByKq.set(v.key_question_id, list)
     }
     return keyQuestions
       .map((kq) => {
-        const ranks = votesByKq.get(kq.id) ?? []
+        const votes = votesByKq.get(kq.id) ?? []
         const avg =
-          ranks.length > 0
-            ? ranks.reduce((a, b) => a + b, 0) / ranks.length
+          votes.length > 0
+            ? votes.reduce((a, v) => a + v.rank_within_type, 0) / votes.length
             : null
-        return { kq, avg, voterCount: ranks.length }
+        return { kq, avg, votes }
       })
       .sort((a, b) => {
         if (a.avg === null && b.avg === null) return 0
@@ -319,31 +441,53 @@ function CombinedRanking({
       })
   }, [keyQuestions, allVotes])
 
-  if (combined.length === 0 || combined.every((c) => c.voterCount === 0)) {
+  if (combined.length === 0 || combined.every((c) => c.votes.length === 0)) {
     return null
   }
 
+  const maxVoters = Math.max(1, ...combined.map((c) => c.votes.length))
+
   return (
-    <div className="mt-2 flex flex-col gap-1.5 border-t border-border pt-3">
+    <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
       <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         Combined ranking (all voters)
       </h4>
-      {combined.map(({ kq, avg, voterCount }) => (
+      {combined.map(({ kq, avg, votes }) => (
         <div
           key={kq.id}
-          className="flex items-center justify-between gap-2 text-sm"
+          className="flex items-center justify-between gap-3 text-sm"
         >
-          <span className="flex items-center gap-2">
-            <Badge variant="outline" className="font-mono text-[10px]">
+          <span className="flex min-w-0 items-center gap-2">
+            <Badge variant="outline" className="shrink-0 font-mono text-[10px]">
               {kq.kq_number}
             </Badge>
-            <span className="text-muted-foreground">{kq.question_text}</span>
+            <span className="truncate text-muted-foreground">{kq.question_text}</span>
           </span>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {avg !== null
-              ? `avg rank ${avg.toFixed(1)} · ${voterCount} voter${voterCount === 1 ? "" : "s"}`
-              : "no votes yet"}
-          </span>
+          <div className="flex shrink-0 items-center gap-3">
+            {votes.length > 0 && (
+              <>
+                <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-gk-blue-deep"
+                    style={{ width: `${(votes.length / maxVoters) * 100}%` }}
+                  />
+                </div>
+                <AvatarGroup>
+                  {votes.slice(0, 4).map((v) => (
+                    <Avatar key={v.voter_id} size="sm">
+                      <AvatarFallback className={voterColorClass(v.voter_id)} />
+                    </Avatar>
+                  ))}
+                  {votes.length > 4 && (
+                    <AvatarGroupCount>+{votes.length - 4}</AvatarGroupCount>
+                  )}
+                </AvatarGroup>
+              </>
+            )}
+            <span className="text-xs whitespace-nowrap text-muted-foreground">
+              {avg !== null ? `avg rank ${avg.toFixed(1)}` : "no votes yet"}
+            </span>
+          </div>
         </div>
       ))}
     </div>

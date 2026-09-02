@@ -5,15 +5,12 @@ import { ExternalLink, Lock } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   type IndicatorLevel,
   type KeyQuestion,
   type KeyQuestionLink,
 } from "@/lib/types"
-
-// Cycles through the theme's 5 chart colors regardless of how many levels
-// a project has configured.
-const CHART_COLOR_COUNT = 5
 
 const LINE_STYLE_BY_RELATIONSHIP: Record<
   KeyQuestionLink["relationship_type"],
@@ -26,6 +23,11 @@ const LINE_STYLE_BY_RELATIONSHIP: Record<
 
 type NeighborDirection = "upstream" | "downstream" | "lateral"
 
+// Upstream/downstream/lateral is a different semantic axis than the
+// results-chain stage colours (which now colour each *column* — see
+// stage-colors.ts). Deliberately kept as distinct raw utility hues rather
+// than reusing stage tokens here, so the two colour languages on this
+// screen don't visually collide.
 const NEIGHBOR_RING_CLASS: Record<NeighborDirection, string> = {
   upstream: "ring-2 ring-blue-400 dark:ring-blue-500",
   downstream: "ring-2 ring-amber-400 dark:ring-amber-500",
@@ -165,6 +167,18 @@ export function MapView({
     return () => window.removeEventListener("resize", onResize)
   }, [recomputeLines])
 
+  // The window-resize listener above misses content-only size changes (a
+  // card growing taller without the viewport itself resizing) — the new
+  // stage colour wash/padding makes that more likely, so also watch the
+  // container directly.
+  React.useEffect(() => {
+    const container = containerRef.current
+    if (!container || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => recomputeLines())
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [recomputeLines])
+
   if (keyQuestions.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -220,79 +234,91 @@ export function MapView({
               gridTemplateColumns: `repeat(${sortedLevels.length}, minmax(0, 1fr))`,
             }}
           >
-          {sortedLevels.map((level, levelIndex) => (
-            <div key={level.id} className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 pb-1">
-                <span
-                  className="size-2 rounded-full"
-                  style={{
-                    backgroundColor: `var(--chart-${(levelIndex % CHART_COLOR_COUNT) + 1})`,
-                  }}
-                />
-                <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  {level.number_label}. {level.label}
-                </h3>
-              </div>
-              <div className="flex flex-col gap-3">
-                {(kqsByLevel.get(level.id) ?? []).map((kq) => {
-                  const isSelected = selectedKqId === kq.id
-                  const direction = neighborDirectionByKqId.get(kq.id)
-                  return (
-                    <div
-                      key={kq.id}
-                      ref={(el) => {
-                        if (el) nodeRefs.current.set(kq.id, el)
-                        else nodeRefs.current.delete(kq.id)
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onSelectKq(isSelected ? null : kq.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault()
-                          onSelectKq(isSelected ? null : kq.id)
-                        }
-                      }}
-                      className={cn(
-                        "flex cursor-pointer flex-col gap-1 rounded-lg border border-border bg-card p-2.5 text-left text-xs shadow-sm transition-colors hover:bg-muted/50",
-                        kq.is_locked && "border-muted-foreground/40",
-                        isSelected && "ring-2 ring-ring",
-                        !isSelected && direction && NEIGHBOR_RING_CLASS[direction]
-                      )}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Badge
-                          variant={kq.is_locked ? "secondary" : "outline"}
-                          className="font-mono text-[10px]"
-                        >
-                          {kq.kq_number}
-                        </Badge>
-                        {kq.is_locked && (
-                          <Lock className="size-3 text-muted-foreground" />
+          {sortedLevels.map((level) => {
+            const stage = stageColorsForLevel(level, sortedLevels)
+            return (
+              <div
+                key={level.id}
+                className={cn("flex flex-col gap-2 rounded-lg p-2", stage.wash)}
+              >
+                <div className="flex items-center gap-2 pb-1">
+                  <span
+                    className={cn(
+                      "flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
+                      stage.bg,
+                      stage.fg
+                    )}
+                  >
+                    {level.number_label}
+                  </span>
+                  <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    {level.label}
+                  </h3>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {(kqsByLevel.get(level.id) ?? []).map((kq) => {
+                    const isSelected = selectedKqId === kq.id
+                    const direction = neighborDirectionByKqId.get(kq.id)
+                    const dimmed =
+                      selectedKqId !== null && !isSelected && !direction
+                    return (
+                      <div
+                        key={kq.id}
+                        ref={(el) => {
+                          if (el) nodeRefs.current.set(kq.id, el)
+                          else nodeRefs.current.delete(kq.id)
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSelectKq(isSelected ? null : kq.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            onSelectKq(isSelected ? null : kq.id)
+                          }
+                        }}
+                        style={{ borderTop: `3px solid ${stage.cssVar}` }}
+                        className={cn(
+                          "flex cursor-pointer flex-col gap-1 rounded-card bg-card p-2.5 text-left text-xs shadow-[0_1px_3px_rgba(20,20,20,0.08)] ring-1 ring-border transition-[opacity,box-shadow] hover:bg-muted/50",
+                          isSelected && "ring-2 ring-ring",
+                          !isSelected && direction && NEIGHBOR_RING_CLASS[direction],
+                          dimmed && "opacity-40"
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant={kq.is_locked ? "secondary" : "outline"}
+                            className="font-mono text-[10px]"
+                          >
+                            {kq.kq_number}
+                          </Badge>
+                          {kq.is_locked && (
+                            <Lock className="size-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        <span className="line-clamp-3 text-foreground">
+                          {kq.short_name || kq.question_text}
+                        </span>
+                        {isSelected && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onOpenDetail(kq.id)
+                            }}
+                            className="mt-1 flex items-center gap-1 self-start text-[11px] font-medium text-foreground underline-offset-2 hover:underline"
+                          >
+                            View details
+                            <ExternalLink className="size-3" />
+                          </button>
                         )}
                       </div>
-                      <span className="line-clamp-3 text-foreground">
-                        {kq.short_name || kq.question_text}
-                      </span>
-                      {isSelected && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onOpenDetail(kq.id)
-                          }}
-                          className="mt-1 flex items-center gap-1 self-start text-[11px] font-medium text-foreground underline-offset-2 hover:underline"
-                        >
-                          View details
-                          <ExternalLink className="size-3" />
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           </div>
         </div>
       </div>

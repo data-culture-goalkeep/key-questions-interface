@@ -3,6 +3,8 @@
 import * as React from "react"
 import ReactMarkdown from "react-markdown"
 
+import { Link2 } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
+import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   DATA_AVAILABILITY_STATUSES,
   PRIORITIES,
@@ -31,6 +35,14 @@ import {
   type KeyQuestion,
 } from "@/lib/types"
 import type { KeyQuestionInput } from "./actions"
+
+function FormSectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      {children}
+    </h4>
+  )
+}
 
 function emptyForm(defaultIndicatorLevelId: string): KeyQuestionInput {
   return {
@@ -171,7 +183,7 @@ export function KqFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
@@ -183,6 +195,7 @@ export function KqFormDialog({
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-4">
+            <FormSectionHeading>Identity</FormSectionHeading>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="kqNumber">KQ number</Label>
@@ -214,30 +227,34 @@ export function KqFormDialog({
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="questionText">Key question</Label>
-              <Textarea
-                id="questionText"
-                required
-                value={form.questionText}
-                onChange={(e) => set("questionText", e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="questionText">Key question</Label>
+                <Textarea
+                  id="questionText"
+                  required
+                  value={form.questionText}
+                  onChange={(e) => set("questionText", e.target.value)}
+                  className="min-h-24"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="shortName">Short name</Label>
+                <Textarea
+                  id="shortName"
+                  value={form.shortName}
+                  onChange={(e) => set("shortName", e.target.value)}
+                  placeholder="Schools covered"
+                  className="min-h-24"
+                />
+                <p className="text-xs text-muted-foreground">
+                  A few words for the Map view node — falls back to the key
+                  question text if left blank.
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="shortName">Short name</Label>
-              <Input
-                id="shortName"
-                value={form.shortName}
-                onChange={(e) => set("shortName", e.target.value)}
-                placeholder="Schools covered"
-              />
-              <p className="text-xs text-muted-foreground">
-                A few words for the Map view node — falls back to the key
-                question text if left blank.
-              </p>
-            </div>
-
+            <FormSectionHeading>Classification</FormSectionHeading>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="indicatorLevelId">Indicator type</Label>
@@ -292,26 +309,32 @@ export function KqFormDialog({
                   {sortedLevelsForPicker.map((level) => {
                     const candidates = dependsOnCandidatesByLevel.get(level.id)
                     if (!candidates || candidates.length === 0) return null
+                    const levelStage = stageColorsForLevel(level, indicatorLevels)
                     return (
                       <div key={level.id} className="flex flex-col gap-1">
                         <span className="text-[11px] text-muted-foreground">
                           {level.number_label}. {level.label}
                         </span>
                         <div className="flex flex-wrap gap-1.5">
-                          {candidates.map((kq) => (
-                            <button
-                              key={kq.id}
-                              type="button"
-                              onClick={() => toggleDependsOn(kq.id)}
-                              className={
-                                form.dependsOnKqIds.includes(kq.id)
-                                  ? "rounded-full bg-foreground px-2.5 py-1 text-[11px] text-background"
-                                  : "rounded-full border border-input px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-muted"
-                              }
-                            >
-                              {kq.kq_number}
-                            </button>
-                          ))}
+                          {candidates.map((kq) => {
+                            const selected = form.dependsOnKqIds.includes(kq.id)
+                            return (
+                              <button
+                                key={kq.id}
+                                type="button"
+                                onClick={() => toggleDependsOn(kq.id)}
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] transition-colors",
+                                  selected
+                                    ? cn(levelStage.bg, levelStage.fg, "border border-transparent")
+                                    : "border border-input text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                {selected && <Link2 className="size-2.5" />}
+                                {kq.kq_number}
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     )
@@ -320,6 +343,7 @@ export function KqFormDialog({
               )}
             </div>
 
+            <FormSectionHeading>Definition &amp; action</FormSectionHeading>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="indicatorDefinition">
@@ -425,11 +449,16 @@ export function KqFormDialog({
             <Button
               type="button"
               variant="outline"
+              className="h-11 px-6"
               onClick={() => setOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !form.areaOfEnquiryId}>
+            <Button
+              type="submit"
+              className="h-11 px-6"
+              disabled={saving || !form.areaOfEnquiryId}
+            >
               {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>

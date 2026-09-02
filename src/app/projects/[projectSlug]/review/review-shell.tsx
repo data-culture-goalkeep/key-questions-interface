@@ -14,6 +14,7 @@ import { ProjectDataGate } from "../project-data-provider"
 import { KqDetailPanel } from "./kq-detail-panel"
 import { ListView } from "./list-view"
 import { MapView } from "./map-view"
+import { ReviewHero } from "./review-hero"
 import {
   EMPTY_REVIEW_FILTERS,
   ReviewSidebar,
@@ -98,12 +99,16 @@ function ReviewShellInner({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Review key questions</h2>
+        <h2 className="font-display text-3xl font-semibold">
+          Review key questions
+        </h2>
         <p className="text-sm text-muted-foreground">
           Switch between the full list and the results-chain map — your
           place is kept when you switch.
         </p>
       </div>
+
+      <ReviewHero keyQuestions={keyQuestions} />
 
       <div className="flex flex-col gap-6 sm:flex-row">
         <ReviewSidebar

@@ -30,11 +30,11 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { PageSkeleton } from "@/components/page-skeleton"
+import { PriorityIndicator } from "@/components/priority-indicator"
 import { cn } from "@/lib/utils"
+import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   indicatorLevelLabel,
-  priorityLabel,
-  PRIORITY_BADGE_VARIANT,
   type AreaOfEnquiry,
   type IndicatorLevel,
   type KeyQuestion,
@@ -142,7 +142,9 @@ function ManageViewInner({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Manage key questions</h2>
+        <h2 className="font-display text-3xl font-semibold">
+          Manage key questions
+        </h2>
         <p className="text-sm text-muted-foreground">
           Add, edit, reorder, and lock key questions. Locking a question
           freezes it for clients — no further comments, votes, or
@@ -167,42 +169,40 @@ function ManageViewInner({
         />
       ))}
 
-      <Card>
-        <CardContent className="flex items-center gap-2 pt-4">
-          <Input
-            placeholder="AOE01"
-            className="w-20"
-            value={newAreaNumber}
-            onChange={(e) => setNewAreaNumber(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                run(handleAddArea)
-              }
-            }}
-          />
-          <Input
-            placeholder="New area of enquiry, e.g. Who Are We Reaching?"
-            value={newAreaName}
-            onChange={(e) => setNewAreaName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                run(handleAddArea)
-              }
-            }}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => run(handleAddArea)}
-            className="gap-1.5"
-          >
-            <Plus className="size-4" />
-            Add area
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 rounded-card border border-dashed border-foreground/30 p-4">
+        <Input
+          placeholder="AOE01"
+          className="w-20"
+          value={newAreaNumber}
+          onChange={(e) => setNewAreaNumber(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              run(handleAddArea)
+            }
+          }}
+        />
+        <Input
+          placeholder="New area of enquiry, e.g. Who Are We Reaching?"
+          value={newAreaName}
+          onChange={(e) => setNewAreaName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              run(handleAddArea)
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => run(handleAddArea)}
+          className="w-fit gap-1.5"
+        >
+          <Plus className="size-4" />
+          Add area
+        </Button>
+      </div>
     </div>
   )
 }
@@ -237,6 +237,7 @@ function AreaSection({
   const [name, setName] = React.useState(area.name)
 
   const sorted = [...keyQuestions].sort((a, b) => a.sequence - b.sequence)
+  const lockedCount = keyQuestions.filter((kq) => kq.is_locked).length
 
   async function saveName() {
     if (
@@ -251,7 +252,7 @@ function AreaSection({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
+        <CardTitle className="flex items-center justify-between gap-2 text-xl">
           {editing ? (
             <div className="flex items-center gap-2">
               <Input
@@ -284,14 +285,19 @@ function AreaSection({
           ) : (
             <span className="flex items-center gap-2">
               {area.area_number && (
-                <Badge variant="outline" className="font-mono">
+                <Badge variant="outline" className="font-mono text-xs">
                   {area.area_number}
                 </Badge>
               )}
               {area.name}
+              {keyQuestions.length > 0 && (
+                <Badge variant="secondary" className="text-[11px] font-normal">
+                  {lockedCount} of {keyQuestions.length} locked
+                </Badge>
+              )}
             </span>
           )}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -324,6 +330,7 @@ function AreaSection({
                   variant="ghost"
                   size="icon-sm"
                   aria-label="Delete area"
+                  className="hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="size-3.5" />
                 </Button>
@@ -340,6 +347,7 @@ function AreaSection({
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
+                    variant="destructive"
                     onClick={() => run(() => deleteArea(projectId, area.id))}
                   >
                     Delete
@@ -413,6 +421,9 @@ function KqRow({
   run: (fn: () => Promise<void>) => void
   refresh: () => Promise<void>
 }) {
+  const level = indicatorLevels.find((l) => l.id === kq.indicator_level_id)
+  const stage = level ? stageColorsForLevel(level, indicatorLevels) : null
+
   return (
     <div
       className={cn(
@@ -428,12 +439,16 @@ function KqRow({
           >
             {kq.kq_number}
           </Badge>
-          <Badge variant="outline">
-            {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
-          </Badge>
-          <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
-            {priorityLabel(kq.priority)}
-          </Badge>
+          {stage ? (
+            <Badge className={cn("border-transparent", stage.bg, stage.fg)}>
+              {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
+            </Badge>
+          ) : (
+            <Badge variant="outline">
+              {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
+            </Badge>
+          )}
+          <PriorityIndicator priority={kq.priority} />
           {kq.is_locked && (
             <Badge variant="secondary" className="gap-1">
               <Lock className="size-3" />
@@ -444,7 +459,7 @@ function KqRow({
         <p className="text-sm">{kq.question_text}</p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border p-0.5">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -503,7 +518,12 @@ function KqRow({
         />
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Delete">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Delete"
+              className="hover:bg-destructive/10 hover:text-destructive"
+            >
               <Trash2 className="size-3.5" />
             </Button>
           </AlertDialogTrigger>
@@ -517,6 +537,7 @@ function KqRow({
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
+                variant="destructive"
                 onClick={() => run(() => deleteKeyQuestion(projectId, kq.id))}
               >
                 Delete

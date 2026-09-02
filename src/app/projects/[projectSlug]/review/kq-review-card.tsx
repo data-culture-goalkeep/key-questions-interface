@@ -11,10 +11,10 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
+import { PriorityIndicator } from "@/components/priority-indicator"
+import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   indicatorLevelLabel,
-  priorityLabel,
-  PRIORITY_BADGE_VARIANT,
   type IndicatorLevel,
   type KeyQuestion,
 } from "@/lib/types"
@@ -41,15 +41,13 @@ export function KqReviewCard({
   const openComments =
     kq.key_question_comments?.filter((c) => c.status === "open").length ?? 0
   const verifiedCount = kq.key_question_client_reviews?.length ?? 0
+  const level = indicatorLevels.find((l) => l.id === kq.indicator_level_id)
+  const stage = level ? stageColorsForLevel(level, indicatorLevels) : null
 
   return (
     <Card
       id={`kq-${kq.id}`}
-      className={cn(
-        "ring-border/60 scroll-mt-24",
-        open && "ring-2 ring-ring",
-        kq.is_locked && "border-muted-foreground/40"
-      )}
+      className={cn("scroll-mt-24", open && "ring-2 ring-ring")}
     >
       <Collapsible open={open} onOpenChange={onOpenChange}>
         <CollapsibleTrigger asChild>
@@ -63,12 +61,16 @@ export function KqReviewCard({
                   >
                     {kq.kq_number}
                   </Badge>
-                  <Badge variant="outline">
-                    {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
-                  </Badge>
-                  <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
-                    {priorityLabel(kq.priority)}
-                  </Badge>
+                  {stage ? (
+                    <Badge className={cn("border-transparent", stage.bg, stage.fg)}>
+                      {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">
+                      {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
+                    </Badge>
+                  )}
+                  <PriorityIndicator priority={kq.priority} />
                   {kq.is_locked && (
                     <Badge variant="secondary" className="gap-1">
                       <Lock className="size-3" />
@@ -82,7 +84,13 @@ export function KqReviewCard({
               </div>
               <div className="flex shrink-0 items-center gap-2 text-muted-foreground">
                 {commentCount > 0 && (
-                  <span className="flex items-center gap-1 text-xs">
+                  <span className="flex items-center gap-1.5 text-xs">
+                    {openComments > 0 && (
+                      <span
+                        className="size-1.5 rounded-full bg-gk-yellow"
+                        aria-hidden
+                      />
+                    )}
                     <MessageSquare className="size-3.5" />
                     {commentCount}
                     {openComments > 0 && (

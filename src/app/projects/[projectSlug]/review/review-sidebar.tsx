@@ -1,6 +1,8 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   PRIORITIES,
   type AreaOfEnquiry,
@@ -38,6 +40,36 @@ function FilterChip({
       <Badge
         variant={active ? "default" : "outline"}
         className="cursor-pointer text-[11px]"
+      >
+        {children}
+      </Badge>
+    </button>
+  )
+}
+
+// Level chips keep their stage colour visible even when unselected, so
+// people learn the results-chain colour language just by scanning the
+// filter panel — the one filter group where the doc wants that.
+function StageFilterChip({
+  active,
+  onClick,
+  stageClass,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  stageClass: { bg: string; fg: string; text: string }
+  children: React.ReactNode
+}) {
+  return (
+    <button type="button" onClick={onClick}>
+      <Badge
+        className={cn(
+          "cursor-pointer border-transparent text-[11px]",
+          active
+            ? cn(stageClass.bg, stageClass.fg)
+            : cn("bg-transparent", stageClass.text, "border-current/30")
+        )}
       >
         {children}
       </Badge>
@@ -105,13 +137,14 @@ export function ReviewSidebar({
           </span>
           <div className="flex flex-wrap gap-1.5">
             {sortedLevels.map((l) => (
-              <FilterChip
+              <StageFilterChip
                 key={l.id}
                 active={filters.levelId === l.id}
                 onClick={() => selectLevel(l.id)}
+                stageClass={stageColorsForLevel(l, sortedLevels)}
               >
                 {l.number_label}
-              </FilterChip>
+              </StageFilterChip>
             ))}
           </div>
         </div>

@@ -38,7 +38,7 @@ export function ProfileButton({
           className="flex items-center gap-2 rounded-full transition-opacity hover:opacity-80"
           aria-label="Account menu"
         >
-          <Avatar size="sm">
+          <Avatar size="sm" className="ring-2 ring-gk-blue-deep/30">
             {userContext.avatarUrl && (
               <AvatarImage
                 src={userContext.avatarUrl}

@@ -4,10 +4,11 @@ import { Lock, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { PriorityIndicator } from "@/components/priority-indicator"
+import { cn } from "@/lib/utils"
+import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   indicatorLevelLabel,
-  priorityLabel,
-  PRIORITY_BADGE_VARIANT,
   type IndicatorLevel,
   type KeyQuestion,
 } from "@/lib/types"
@@ -30,6 +31,9 @@ export function KqDetailPanel({
   indicatorLevels: IndicatorLevel[]
   onClose: () => void
 }) {
+  const level = indicatorLevels.find((l) => l.id === kq.indicator_level_id)
+  const stage = level ? stageColorsForLevel(level, indicatorLevels) : null
+
   return (
     <>
       <div
@@ -47,12 +51,16 @@ export function KqDetailPanel({
               >
                 {kq.kq_number}
               </Badge>
-              <Badge variant="outline">
-                {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
-              </Badge>
-              <Badge variant={PRIORITY_BADGE_VARIANT[kq.priority]}>
-                {priorityLabel(kq.priority)}
-              </Badge>
+              {stage ? (
+                <Badge className={cn("border-transparent", stage.bg, stage.fg)}>
+                  {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
+                </Badge>
+              ) : (
+                <Badge variant="outline">
+                  {indicatorLevelLabel(indicatorLevels, kq.indicator_level_id)}
+                </Badge>
+              )}
+              <PriorityIndicator priority={kq.priority} />
               {kq.is_locked && (
                 <Badge variant="secondary" className="gap-1">
                   <Lock className="size-3" />
