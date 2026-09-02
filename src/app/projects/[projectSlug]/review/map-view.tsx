@@ -5,6 +5,7 @@ import { ExternalLink, Lock } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   type IndicatorLevel,
@@ -131,19 +132,35 @@ export function MapView({
 
     const next: LineCoords[] = []
     for (const link of links) {
-      const a = nodeRefs.current.get(link.key_question_id_a)
-      const b = nodeRefs.current.get(link.key_question_id_b)
-      if (!a || !b) continue
-      const aRect = a.getBoundingClientRect()
-      const bRect = b.getBoundingClientRect()
+      const aNode = nodeRefs.current.get(link.key_question_id_a)
+      const bNode = nodeRefs.current.get(link.key_question_id_b)
+      if (!aNode || !bNode) continue
 
-      const aRight = aRect.right < bRect.left
+      // Point the arrow from the earlier stage to the later one — matching
+      // how the chain actually reads — rather than trusting the link
+      // row's own a/b order, which reflects how the link was created
+      // (e.g. "depends on" stores the *later* KQ as `a`) not which side is
+      // upstream.
+      const aKq = keyQuestions.find((k) => k.id === link.key_question_id_a)
+      const bKq = keyQuestions.find((k) => k.id === link.key_question_id_b)
+      const aLevelIndex = aKq && levelIndexById.get(aKq.indicator_level_id)
+      const bLevelIndex = bKq && levelIndexById.get(bKq.indicator_level_id)
+      const bIsEarlier =
+        aLevelIndex !== undefined &&
+        bLevelIndex !== undefined &&
+        bLevelIndex < aLevelIndex
+      const fromNode = bIsEarlier ? bNode : aNode
+      const toNode = bIsEarlier ? aNode : bNode
+
+      const fromRect = fromNode.getBoundingClientRect()
+      const toRect = toNode.getBoundingClientRect()
+      const fromRight = fromRect.right < toRect.left
       next.push({
         id: link.id,
-        x1: (aRight ? aRect.right : aRect.left) - containerRect.left,
-        y1: aRect.top + aRect.height / 2 - containerRect.top,
-        x2: (aRight ? bRect.left : bRect.right) - containerRect.left,
-        y2: bRect.top + bRect.height / 2 - containerRect.top,
+        x1: (fromRight ? fromRect.right : fromRect.left) - containerRect.left,
+        y1: fromRect.top + fromRect.height / 2 - containerRect.top,
+        x2: (fromRight ? toRect.left : toRect.right) - containerRect.left,
+        y2: toRect.top + toRect.height / 2 - containerRect.top,
         relationshipType: link.relationship_type,
         active:
           selectedKqId === link.key_question_id_a ||
@@ -151,11 +168,7 @@ export function MapView({
       })
     }
     setLines(next)
-    // keyQuestions is read only via nodeRefs (DOM lookups), not directly,
-    // but it must stay a dependency: filtering changes which nodes are
-    // mounted, so stale lines from now-unmounted nodes need to be dropped.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [links, selectedKqId, keyQuestions])
+  }, [links, selectedKqId, keyQuestions, levelIndexById])
 
   React.useLayoutEffect(() => {
     recomputeLines()
@@ -189,14 +202,27 @@ export function MapView({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-xs text-muted-foreground">
-        Solid lines = informs · dashed = depends on · dotted = related to.
-        Click a key question to highlight what feeds into it (
-        <span className="text-blue-500 dark:text-blue-400">blue</span>) and
-        what it feeds (
-        <span className="text-amber-500 dark:text-amber-400">amber</span>),
-        then use &quot;View details&quot; for the full record.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Solid lines = informs · dashed = depends on · dotted = related to.
+          Click a key question to highlight what feeds into it (
+          <span className="text-blue-500 dark:text-blue-400">blue</span>) and
+          what it feeds (
+          <span className="text-amber-500 dark:text-amber-400">amber</span>),
+          then use &quot;View details&quot; for the full record.
+        </p>
+        {selectedKqId && (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="shrink-0"
+            onClick={() => onSelectKq(null)}
+          >
+            Reset map
+          </Button>
+        )}
+      </div>
       <div className="overflow-x-auto">
         {/* containerRef's own box must span the full scrollable content
             width (not just the visible viewport), since the SVG overlay
@@ -207,6 +233,30 @@ export function MapView({
           style={{ minWidth: `${sortedLevels.length * 180}px` }}
         >
           <svg className="pointer-events-none absolute inset-0 h-full w-full">
+            <defs>
+              <marker
+                id="map-arrow"
+                viewBox="0 0 10 10"
+                refX="8.5"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--foreground)" opacity="0.45" />
+              </marker>
+              <marker
+                id="map-arrow-active"
+                viewBox="0 0 10 10"
+                refX="8.5"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--foreground)" opacity="0.9" />
+              </marker>
+            </defs>
             {lines.map((line) => (
               <line
                 key={line.id}
@@ -224,6 +274,7 @@ export function MapView({
                 strokeDasharray={
                   LINE_STYLE_BY_RELATIONSHIP[line.relationshipType].dash
                 }
+                markerEnd={`url(#${line.active ? "map-arrow-active" : "map-arrow"})`}
               />
             ))}
           </svg>

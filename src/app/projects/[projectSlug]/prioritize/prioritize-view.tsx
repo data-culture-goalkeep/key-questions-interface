@@ -18,7 +18,6 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
-import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -115,6 +114,26 @@ function PrioritizeViewInner({
     for (const v of myVotes) map.set(v.key_question_id, v.rank_within_type)
     return map
   }, [myVotes])
+
+  // Combined (all-voter) average rank per KQ, shown inline on each row for
+  // facilitators — replaces the old separate "combined ranking" list below
+  // the draggable order.
+  const combinedByKqId = React.useMemo(() => {
+    const map = new Map<string, { avg: number; voters: number }>()
+    const ranksByKq = new Map<string, number[]>()
+    for (const v of allVotes) {
+      const list = ranksByKq.get(v.key_question_id) ?? []
+      list.push(v.rank_within_type)
+      ranksByKq.set(v.key_question_id, list)
+    }
+    for (const [kqId, ranks] of ranksByKq) {
+      map.set(kqId, {
+        avg: ranks.reduce((a, b) => a + b, 0) / ranks.length,
+        voters: ranks.length,
+      })
+    }
+    return map
+  }, [allVotes])
 
   const sortedLevels = React.useMemo(
     () => [...indicatorLevels].sort((a, b) => a.sequence - b.sequence),
@@ -254,6 +273,7 @@ function PrioritizeViewInner({
                       isLast={index === ordered.length - 1}
                       onMoveUp={() => move(level.id, kq.id, "up")}
                       onMoveDown={() => move(level.id, kq.id, "down")}
+                      combined={role === "facilitator" ? combinedByKqId.get(kq.id) : undefined}
                     />
                   ))}
                 </SortableContext>
@@ -274,13 +294,6 @@ function PrioritizeViewInner({
                   locked yet — a facilitator locks a question in Manage once
                   it&apos;s ready to prioritise.
                 </p>
-              )}
-
-              {role === "facilitator" && (
-                <CombinedRanking
-                  keyQuestions={allInLevel.filter((kq) => kq.is_locked)}
-                  allVotes={allVotes}
-                />
               )}
             </CardContent>
           </Card>
@@ -320,6 +333,7 @@ function RankRow({
   isLast,
   onMoveUp,
   onMoveDown,
+  combined,
 }: {
   kq: KeyQuestion
   index: number
@@ -328,6 +342,10 @@ function RankRow({
   isLast: boolean
   onMoveUp: () => void
   onMoveDown: () => void
+  // Facilitator-only: this KQ's all-voter average rank, shown inline
+  // rather than in a separate list — undefined for clients, or for a KQ
+  // nobody has voted on yet.
+  combined?: { avg: number; voters: number }
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: kq.id })
@@ -371,6 +389,12 @@ function RankRow({
               {kq.kq_number}
             </Badge>
             <PriorityIndicator priority={kq.priority} />
+            {combined && (
+              <span className="text-xs whitespace-nowrap text-muted-foreground">
+                combined avg {combined.avg.toFixed(1)} ({combined.voters} voter
+                {combined.voters === 1 ? "" : "s"})
+              </span>
+            )}
           </div>
           <p className="text-sm">{kq.question_text}</p>
         </div>
@@ -399,97 +423,3 @@ function RankRow({
   )
 }
 
-// No real voter identity is available client-side (only voter_id UUIDs, no
-// email/name join in the kq_navigator-scoped client) — stable-hashed
-// anonymous colour per voter instead of initials, so agreement/disagreement
-// is still visible at a glance without inventing identity that isn't there.
-const VOTER_COLORS = ["bg-gk-yellow", "bg-gk-coral", "bg-gk-teal", "bg-gk-blue"]
-function voterColorClass(voterId: string) {
-  let hash = 0
-  for (let i = 0; i < voterId.length; i++) hash = (hash * 31 + voterId.charCodeAt(i)) | 0
-  return VOTER_COLORS[Math.abs(hash) % VOTER_COLORS.length]
-}
-
-function CombinedRanking({
-  keyQuestions,
-  allVotes,
-}: {
-  keyQuestions: KeyQuestion[]
-  allVotes: VoteRow[]
-}) {
-  const combined = React.useMemo(() => {
-    const votesByKq = new Map<string, VoteRow[]>()
-    for (const v of allVotes) {
-      const list = votesByKq.get(v.key_question_id) ?? []
-      list.push(v)
-      votesByKq.set(v.key_question_id, list)
-    }
-    return keyQuestions
-      .map((kq) => {
-        const votes = votesByKq.get(kq.id) ?? []
-        const avg =
-          votes.length > 0
-            ? votes.reduce((a, v) => a + v.rank_within_type, 0) / votes.length
-            : null
-        return { kq, avg, votes }
-      })
-      .sort((a, b) => {
-        if (a.avg === null && b.avg === null) return 0
-        if (a.avg === null) return 1
-        if (b.avg === null) return -1
-        return a.avg - b.avg
-      })
-  }, [keyQuestions, allVotes])
-
-  if (combined.length === 0 || combined.every((c) => c.votes.length === 0)) {
-    return null
-  }
-
-  const maxVoters = Math.max(1, ...combined.map((c) => c.votes.length))
-
-  return (
-    <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
-      <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        Combined ranking (all voters)
-      </h4>
-      {combined.map(({ kq, avg, votes }) => (
-        <div
-          key={kq.id}
-          className="flex items-center justify-between gap-3 text-sm"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <Badge variant="outline" className="shrink-0 font-mono text-[10px]">
-              {kq.kq_number}
-            </Badge>
-            <span className="truncate text-muted-foreground">{kq.question_text}</span>
-          </span>
-          <div className="flex shrink-0 items-center gap-3">
-            {votes.length > 0 && (
-              <>
-                <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-gk-blue-deep"
-                    style={{ width: `${(votes.length / maxVoters) * 100}%` }}
-                  />
-                </div>
-                <AvatarGroup>
-                  {votes.slice(0, 4).map((v) => (
-                    <Avatar key={v.voter_id} size="sm">
-                      <AvatarFallback className={voterColorClass(v.voter_id)} />
-                    </Avatar>
-                  ))}
-                  {votes.length > 4 && (
-                    <AvatarGroupCount>+{votes.length - 4}</AvatarGroupCount>
-                  )}
-                </AvatarGroup>
-              </>
-            )}
-            <span className="text-xs whitespace-nowrap text-muted-foreground">
-              {avg !== null ? `avg rank ${avg.toFixed(1)}` : "no votes yet"}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}

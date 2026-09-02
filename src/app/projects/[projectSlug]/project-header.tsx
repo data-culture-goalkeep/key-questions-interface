@@ -19,7 +19,7 @@ export function ProjectHeader() {
 
   return (
     <header className="border-b border-border bg-card">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-4">
           <Link href="/" aria-label="All projects" className="shrink-0">
             <Image
@@ -38,7 +38,7 @@ export function ProjectHeader() {
                 <img
                   src={data.project.logo_url}
                   alt=""
-                  className="size-6 rounded object-contain"
+                  className="size-10 rounded object-contain"
                 />
               )}
               <h1 className="text-base font-semibold">{data.project.name}</h1>

@@ -69,24 +69,27 @@ export function ReviewHero({
             </div>
           </div>
         ))}
-      </div>
 
-      {levelCounts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-border pt-4">
-          {levelCounts.map(({ level, count, stage }) => (
-            <span
-              key={level.id}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
-                stage.bg,
-                stage.fg
-              )}
-            >
-              {count} {level.label}
-            </span>
-          ))}
-        </div>
-      )}
+        {levelCounts.length > 0 && (
+          <>
+            <div className="hidden h-10 w-px shrink-0 bg-border sm:block" aria-hidden />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {levelCounts.map(({ level, count, stage }) => (
+                <span
+                  key={level.id}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
+                    stage.bg,
+                    stage.fg
+                  )}
+                >
+                  {count} {level.label}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </Card>
   )
 }

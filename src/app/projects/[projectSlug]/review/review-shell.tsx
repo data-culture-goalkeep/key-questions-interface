@@ -110,48 +110,47 @@ function ReviewShellInner({
 
       <ReviewHero keyQuestions={keyQuestions} indicatorLevels={indicatorLevels} />
 
-      <div className="flex flex-col gap-6 sm:flex-row">
-        <ReviewSidebar
-          areas={areas}
-          indicatorLevels={indicatorLevels}
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
+      {/* Renders nothing here — portals its content into the persistent
+          left nav rail (ProjectSidebar) so filters live in one left-hand
+          region instead of a second column competing for space. */}
+      <ReviewSidebar
+        areas={areas}
+        indicatorLevels={indicatorLevels}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
 
-        <div className="min-w-0 flex-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="list">List</TabsTrigger>
-              <TabsTrigger value="map">Map</TabsTrigger>
-            </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="list">List</TabsTrigger>
+          <TabsTrigger value="map">Map</TabsTrigger>
+        </TabsList>
 
-            <TabsContent value="list" className="pt-4">
-              <ListView
-                projectId={projectId}
-                userId={userId}
-                role={role}
-                areas={areas}
-                keyQuestions={filteredKeyQuestions}
-                indicatorLevels={indicatorLevels}
-                selectedKqId={selectedKqId}
-                focusToken={focusToken}
-                onSelectKq={setSelectedKqId}
-              />
-            </TabsContent>
+        <TabsContent value="list" className="pt-4">
+          <ListView
+            projectId={projectId}
+            userId={userId}
+            role={role}
+            areas={areas}
+            keyQuestions={filteredKeyQuestions}
+            indicatorLevels={indicatorLevels}
+            selectedKqId={selectedKqId}
+            focusToken={focusToken}
+            onSelectKq={setSelectedKqId}
+          />
+        </TabsContent>
 
-            <TabsContent value="map" className="pt-4">
-              <MapView
-                keyQuestions={filteredKeyQuestions}
-                links={links}
-                indicatorLevels={indicatorLevels}
-                selectedKqId={selectedKqId}
-                onSelectKq={selectFromMap}
-                onOpenDetail={setDetailPanelKqId}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+        <TabsContent value="map" className="pt-4">
+          <MapView
+            keyQuestions={filteredKeyQuestions}
+            links={links}
+            indicatorLevels={indicatorLevels}
+            selectedKqId={selectedKqId}
+            onSelectKq={selectFromMap}
+            onOpenDetail={setDetailPanelKqId}
+          />
+        </TabsContent>
+      </Tabs>
 
       {detailKq && (
         <KqDetailPanel

@@ -79,6 +79,14 @@ export function KqDetailContent({
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <dt className="text-xs font-medium text-muted-foreground">
+            Short Name
+          </dt>
+          <dd className="text-sm whitespace-pre-line">
+            {kq.short_name || "—"}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-1">
+          <dt className="text-xs font-medium text-muted-foreground">
             Indicator Definition
           </dt>
           <dd className="prose prose-sm dark:prose-invert max-w-none text-sm">

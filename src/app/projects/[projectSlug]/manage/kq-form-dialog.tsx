@@ -132,9 +132,10 @@ export function KqFormDialog({
     [indicatorLevels]
   )
 
-  // Switching to an earlier indicator level can put a previously-selected
-  // dependency out of range — drop it rather than carry a hidden selection
-  // the picker no longer shows.
+  // Switching indicator level can put a previously-selected dependency out
+  // of range — drop it rather than carry a hidden selection the picker no
+  // longer shows. Dependencies are strictly the previous stage(s), never
+  // the same stage, so this filters on "<", not "<=".
   function setIndicatorLevel(newLevelId: string) {
     const newSequence = levelSequenceById.get(newLevelId) ?? Infinity
     setForm((f) => ({
@@ -145,7 +146,7 @@ export function KqFormDialog({
         const sequence = kq
           ? (levelSequenceById.get(kq.indicator_level_id) ?? Infinity)
           : Infinity
-        return sequence <= newSequence
+        return sequence < newSequence
       }),
     }))
   }
@@ -166,7 +167,9 @@ export function KqFormDialog({
     for (const kq of allKeyQuestions) {
       if (keyQuestion && kq.id === keyQuestion.id) continue
       const sequence = levelSequenceById.get(kq.indicator_level_id) ?? Infinity
-      if (sequence > currentLevelSequence) continue
+      // Strictly the previous stage(s) — a KQ can't depend on one in its
+      // own stage or a later one.
+      if (sequence >= currentLevelSequence) continue
       const list = map.get(kq.indicator_level_id) ?? []
       list.push(kq)
       map.set(kq.indicator_level_id, list)
@@ -183,7 +186,7 @@ export function KqFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-[960px] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
@@ -297,12 +300,12 @@ export function KqFormDialog({
             <div className="flex flex-col gap-1.5">
               <Label>Depends on</Label>
               <p className="text-xs text-muted-foreground">
-                Other key questions this one depends on — limited to
-                indicator levels at or before its own.
+                Other key questions this one depends on — limited to the
+                previous indicator level(s).
               </p>
               {dependsOnCandidatesByLevel.size === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No earlier-or-same-level key questions to depend on yet.
+                  No earlier-stage key questions to depend on yet.
                 </p>
               ) : (
                 <div className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-md border border-input p-2">
