@@ -9,8 +9,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-mono: var(--font-ibm-plex-mono);
+  --font-heading: var(--font-heading);
+  --font-display: var(--font-fraunces);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,6 +41,29 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* Goalkeep brand + results-chain stage tokens — see GOALKEEP BRAND below
+     for the raw values. Exposed here so bg-stage-reach, text-stage-input-fg,
+     bg-canvas, text-ink-secondary, border-subtle etc. become real Tailwind
+     utilities, the same way every other semantic token in this block does. */
+  --color-gk-ink: var(--gk-ink);
+  --color-gk-yellow: var(--gk-yellow);
+  --color-gk-coral: var(--gk-coral);
+  --color-gk-teal: var(--gk-teal);
+  --color-gk-blue: var(--gk-blue);
+  --color-gk-blue-deep: var(--gk-blue-deep);
+  --color-stage-reach: var(--stage-reach);
+  --color-stage-input: var(--stage-input);
+  --color-stage-output: var(--stage-output);
+  --color-stage-outcome: var(--stage-outcome);
+  --color-stage-impact: var(--stage-impact);
+  --color-stage-reach-fg: var(--stage-reach-fg);
+  --color-stage-input-fg: var(--stage-input-fg);
+  --color-stage-output-fg: var(--stage-output-fg);
+  --color-stage-outcome-fg: var(--stage-outcome-fg);
+  --color-stage-impact-fg: var(--stage-impact-fg);
+  --color-bg-canvas: var(--bg-canvas);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-border-subtle: var(--border-subtle);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -47,40 +71,84 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Literal, not derived from --radius — the doc's "12px everywhere" card
+     rule is a fixed brand constant, independent of the button/input radius
+     scale above. See src/components/ui/card.tsx. */
+  --radius-card: 12px;
 }
 
 :root {
-  /* Live defaults match the style guide's "Bold & Structured" direction
-     for color/radius (see .theme-bold below, kept as its own class so the
-     style guide can still show it side-by-side with the other two
-     directions) — font is Questrial, chosen from the style guide's font
-     toggle rather than Bold's original Geist/Space Grotesk pairing. */
-  --font-sans: var(--font-questrial);
-  --font-heading: var(--font-questrial);
-  --background: oklch(0.97 0 0);
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.22 0 0);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.93 0 0);
-  --secondary-foreground: oklch(0.15 0 0);
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --accent: oklch(0.9 0 0);
-  --accent-foreground: oklch(0.15 0 0);
-  --destructive: oklch(0.58 0.24 27);
-  --border: oklch(0.85 0 0);
-  --input: oklch(0.85 0 0);
-  --ring: oklch(0.5 0 0);
+  /* GOALKEEP BRAND — official palette (see the brand PDF Goalkeep supplied).
+     Two independent colour languages sit on top of these: "stage" (one hue
+     per results-chain stage — Reach/Input/Output/Intermediate
+     Outcome/Impact, used via src/lib/stage-colors.ts) and "priority"
+     (weight, not hue — see src/components/priority-indicator.tsx). Keep
+     these primitives here and reference them from the semantic tokens below
+     rather than hardcoding hexes at call sites. */
+  --gk-ink: #313032;
+  --gk-yellow: #E9E626;
+  --gk-coral: #EA9D93;
+  --gk-teal: #81C2B2;
+  --gk-blue: #4E72B8;
+  --gk-blue-deep: #17479E;
+  --gk-white: #FFFFFF;
+
+  --stage-reach: var(--gk-blue-deep);
+  --stage-input: var(--gk-teal);
+  --stage-output: var(--gk-coral);
+  --stage-outcome: var(--gk-yellow);
+  --stage-impact: var(--gk-ink);
+  /* Dark fills (deep blue, ink) get white text; the three lighter/pastel
+     fills get ink text — yellow fails contrast with white outright. */
+  --stage-reach-fg: var(--gk-white);
+  --stage-input-fg: var(--gk-ink);
+  --stage-output-fg: var(--gk-ink);
+  --stage-outcome-fg: var(--gk-ink);
+  --stage-impact-fg: var(--gk-white);
+
+  /* One deliberate off-brand exception, reserved strictly for
+     destructive/error UI — none of the four brand accents reads as
+     unambiguous "danger" (coral is closer to warm/friendly). */
+  --utility-danger: #C23934;
+
+  /* Neutrals derived from gk-ink rather than an unrelated cream. */
+  --bg-canvas: #F7F6F6;
+  --bg-surface: var(--gk-white);
+  --ink-secondary: #5B6472;
+  --border-subtle: #E8E6E6;
+
+  --font-sans: var(--font-inter);
+  /* Shared with Card/Dialog/AlertDialog titles — stays a sans weight so
+     those don't unexpectedly go serif. True display type uses the
+     separate `font-display` utility (Fraunces) at specific H1/hero call
+     sites only, per the redesign brief. */
+  --font-heading: var(--font-inter);
+  --background: var(--bg-canvas);
+  --foreground: var(--gk-ink);
+  --card: var(--bg-surface);
+  --card-foreground: var(--gk-ink);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--gk-ink);
+  --primary: var(--gk-ink);
+  --primary-foreground: var(--gk-white);
+  --secondary: #efedec;
+  --secondary-foreground: var(--gk-ink);
+  --muted: #f0efee;
+  --muted-foreground: var(--ink-secondary);
+  --accent: #edebe9;
+  --accent-foreground: var(--gk-ink);
+  --destructive: var(--utility-danger);
+  --border: var(--border-subtle);
+  --input: var(--border-subtle);
+  --ring: var(--gk-blue-deep);
   --chart-1: oklch(0.62 0.22 260);
   --chart-2: oklch(0.68 0.19 200);
   --chart-3: oklch(0.72 0.19 145);
   --chart-4: oklch(0.75 0.19 80);
   --chart-5: oklch(0.6 0.24 20);
-  --radius: 0.25rem;
+  /* 0.5rem (8px) — matches the button/input radius rule; Card's own 12px
+     comes from the separate literal --radius-card above, not this scale. */
+  --radius: 0.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);

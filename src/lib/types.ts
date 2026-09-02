@@ -61,15 +61,6 @@ export function priorityLabel(value: Priority) {
   return PRIORITIES.find((p) => p.value === value)?.label ?? value
 }
 
-export const PRIORITY_BADGE_VARIANT: Record<
-  Priority,
-  "destructive" | "secondary" | "outline"
-> = {
-  high: "destructive",
-  medium: "secondary",
-  low: "outline",
-}
-
 export type ProjectMode = "review" | "prioritization"
 
 export interface Project {

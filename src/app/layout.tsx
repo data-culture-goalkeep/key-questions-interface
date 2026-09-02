@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import {
+  Fraunces,
   Geist,
   Geist_Mono,
+  IBM_Plex_Mono,
   Inter,
   Lora,
   Nunito,
@@ -17,6 +19,20 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+// Brand redesign type system: Fraunces for display/hero headings (used
+// sparingly, via the `font-display` utility — see globals.css), IBM Plex
+// Mono for KQ/indicator codes (replaces Geist Mono as --font-mono).
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-ibm-plex-mono",
+  weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
 
@@ -59,7 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} ${lora.variable} ${spaceGrotesk.variable} ${questrial.variable} ${inter.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} ${lora.variable} ${spaceGrotesk.variable} ${questrial.variable} ${inter.variable} ${fraunces.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

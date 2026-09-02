@@ -14,6 +14,7 @@ import { ProjectDataGate } from "../project-data-provider"
 import { KqDetailPanel } from "./kq-detail-panel"
 import { ListView } from "./list-view"
 import { MapView } from "./map-view"
+import { ReviewHero } from "./review-hero"
 import {
   EMPTY_REVIEW_FILTERS,
   ReviewSidebar,
@@ -98,55 +99,58 @@ function ReviewShellInner({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Review key questions</h2>
+        <h2 className="font-display text-3xl font-semibold">
+          Review key questions
+        </h2>
         <p className="text-sm text-muted-foreground">
           Switch between the full list and the results-chain map — your
           place is kept when you switch.
         </p>
       </div>
 
-      <div className="flex flex-col gap-6 sm:flex-row">
-        <ReviewSidebar
-          areas={areas}
-          indicatorLevels={indicatorLevels}
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
+      <ReviewHero keyQuestions={keyQuestions} indicatorLevels={indicatorLevels} />
 
-        <div className="min-w-0 flex-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="list">List</TabsTrigger>
-              <TabsTrigger value="map">Map</TabsTrigger>
-            </TabsList>
+      {/* Renders nothing here — portals its content into the persistent
+          left nav rail (ProjectSidebar) so filters live in one left-hand
+          region instead of a second column competing for space. */}
+      <ReviewSidebar
+        areas={areas}
+        indicatorLevels={indicatorLevels}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
 
-            <TabsContent value="list" className="pt-4">
-              <ListView
-                projectId={projectId}
-                userId={userId}
-                role={role}
-                areas={areas}
-                keyQuestions={filteredKeyQuestions}
-                indicatorLevels={indicatorLevels}
-                selectedKqId={selectedKqId}
-                focusToken={focusToken}
-                onSelectKq={setSelectedKqId}
-              />
-            </TabsContent>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="list">List</TabsTrigger>
+          <TabsTrigger value="map">Map</TabsTrigger>
+        </TabsList>
 
-            <TabsContent value="map" className="pt-4">
-              <MapView
-                keyQuestions={filteredKeyQuestions}
-                links={links}
-                indicatorLevels={indicatorLevels}
-                selectedKqId={selectedKqId}
-                onSelectKq={selectFromMap}
-                onOpenDetail={setDetailPanelKqId}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+        <TabsContent value="list" className="pt-4">
+          <ListView
+            projectId={projectId}
+            userId={userId}
+            role={role}
+            areas={areas}
+            keyQuestions={filteredKeyQuestions}
+            indicatorLevels={indicatorLevels}
+            selectedKqId={selectedKqId}
+            focusToken={focusToken}
+            onSelectKq={setSelectedKqId}
+          />
+        </TabsContent>
+
+        <TabsContent value="map" className="pt-4">
+          <MapView
+            keyQuestions={filteredKeyQuestions}
+            links={links}
+            indicatorLevels={indicatorLevels}
+            selectedKqId={selectedKqId}
+            onSelectKq={selectFromMap}
+            onOpenDetail={setDetailPanelKqId}
+          />
+        </TabsContent>
+      </Tabs>
 
       {detailKq && (
         <KqDetailPanel

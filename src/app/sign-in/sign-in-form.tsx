@@ -46,12 +46,12 @@ export function SignInForm() {
   }
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-6">
+    <div className="flex w-full max-w-[440px] flex-col gap-6">
       <div className="flex flex-col gap-2">
         <Button
           onClick={signInWithGoogle}
           disabled={googleLoading}
-          className="w-full"
+          className="h-11 w-full"
         >
           {googleLoading ? "Redirecting…" : "Sign in with Google"}
         </Button>
@@ -66,39 +66,48 @@ export function SignInForm() {
         <Separator className="flex-1" />
       </div>
 
-      {status === "sent" ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="size-4" />
-          Check {email} for a sign-in link.
-        </p>
-      ) : (
-        <form onSubmit={sendMagicLink} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Client email</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              placeholder="you@yourorganisation.org"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="outline"
-            className="w-full"
-            disabled={status === "sending"}
-          >
-            {status === "sending" ? "Sending…" : "Send magic link"}
-          </Button>
-          {status === "error" && (
-            <p className="text-xs text-destructive">
-              Something went wrong sending the link. Try again.
-            </p>
-          )}
-        </form>
-      )}
+      <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-5 shadow-[0_1px_3px_rgba(20,20,20,0.08)]">
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-sm font-semibold">Client access</h3>
+          <p className="text-xs text-muted-foreground">
+            Sign in with the email your facilitator granted access to.
+          </p>
+        </div>
+        {status === "sent" ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="size-4" />
+            Check {email} for a sign-in link.
+          </p>
+        ) : (
+          <form onSubmit={sendMagicLink} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                className="h-11"
+                placeholder="you@yourorganisation.org"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <Button
+              type="submit"
+              variant="outline"
+              className="h-11 w-full"
+              disabled={status === "sending"}
+            >
+              {status === "sending" ? "Sending…" : "Send magic link"}
+            </Button>
+            {status === "error" && (
+              <p className="text-xs text-destructive">
+                Something went wrong sending the link. Try again.
+              </p>
+            )}
+          </form>
+        )}
+      </div>
     </div>
   )
 }

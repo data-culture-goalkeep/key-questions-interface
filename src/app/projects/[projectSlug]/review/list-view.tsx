@@ -73,7 +73,7 @@ export function ListView({
             id={`area-${area.id}`}
             className="flex scroll-mt-24 flex-col gap-3"
           >
-            <h3 className="font-heading text-base font-semibold">
+            <h3 className="text-xl font-semibold">
               {area.area_number && (
                 <span className="mr-2 font-mono text-sm text-muted-foreground">
                   {area.area_number}
@@ -81,7 +81,7 @@ export function ListView({
               )}
               {area.name}
             </h3>
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
               {kqs.map((kq) => (
                 <KqReviewCard
                   key={kq.id}
