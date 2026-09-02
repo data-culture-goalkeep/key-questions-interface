@@ -31,6 +31,7 @@ import {
 } from "@/lib/types"
 
 import { ProjectDataGate, useProjectData } from "../project-data-provider"
+import { ReviewHero } from "../review/review-hero"
 import { setRanking } from "./actions"
 
 // Reordering happens entirely client-side; nothing is written until Save is
@@ -228,10 +229,12 @@ function PrioritizeViewInner({
           Drag to reorder, or use the chevrons, then hit Save — nothing is
           written until you do. Your ranking is personal —{" "}
           {role === "facilitator"
-            ? "the combined ranking below shows how everyone's rankings line up."
+            ? "the combined average rank shown on each question is how everyone's rankings line up."
             : "a facilitator will combine everyone's rankings to shortlist the dashboard set."}
         </p>
       </div>
+
+      <ReviewHero keyQuestions={keyQuestions} indicatorLevels={indicatorLevels} />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

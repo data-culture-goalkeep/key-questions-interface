@@ -20,25 +20,25 @@ export function ProjectHeader() {
   return (
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           <Link href="/" aria-label="All projects" className="shrink-0">
             <Image
               src="/goalkeep-logo.png"
               alt="Goalkeep"
-              width={116}
-              height={40}
-              className="h-6 w-auto"
+              width={323}
+              height={81}
+              className="h-9 w-auto"
               priority
             />
           </Link>
           {data ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {data.project.logo_url && (
                 // eslint-disable-next-line @next/next/no-img-element -- logo comes from Supabase Storage, arbitrary per-project host, not worth Next/Image config for one small badge-sized image
                 <img
                   src={data.project.logo_url}
                   alt=""
-                  className="size-10 rounded object-contain"
+                  className="size-12 rounded object-contain"
                 />
               )}
               <h1 className="text-base font-semibold">{data.project.name}</h1>
