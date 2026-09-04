@@ -10,7 +10,9 @@
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "grant-access": "tsx --env-file=.env.local scripts/grant-client-access.ts",
     "get-magic-link": "tsx --env-file=.env.local scripts/get-magic-link.ts",
-    "import:sandipani": "tsx --env-file=.env.local scripts/import-sandipani.ts"
+    "import:sandipani": "tsx --env-file=.env.local scripts/import-sandipani.ts",
+    "import:pm-shri": "tsx --env-file=.env.local scripts/import-pm-shri.ts",
+    "backfill:pm-shri": "tsx --env-file=.env.local scripts/backfill-pm-shri.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

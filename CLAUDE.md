@@ -26,6 +26,8 @@ npm run seed                          # seed dummy/dev data
 npm run grant-access                  # grant a client email access to a project
 npm run get-magic-link -- <email>     # generate a sign-in magic link via the admin API, bypassing the mailer — for scripted/browser-tool logins
 npm run import:sandipani               # one-off import script for the Sandipani project's data
+npm run import:pm-shri                # one-off import script for the PM SHRI project's data
+npm run backfill:pm-shri              # one-off backfill: depends-on links + markdown indicator definitions for PM SHRI
 ```
 
 ## Architecture
