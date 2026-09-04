@@ -32,6 +32,7 @@ import {
 import { PageSkeleton } from "@/components/page-skeleton"
 import { PriorityIndicator } from "@/components/priority-indicator"
 import { highlightMatch } from "@/lib/highlight-match"
+import type { ProjectData } from "@/lib/project-data"
 import { cn } from "@/lib/utils"
 import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
@@ -56,6 +57,51 @@ import {
   type KeyQuestionInput,
 } from "./actions"
 import { KqFormDialog } from "./kq-form-dialog"
+
+// Computes the sequence swap a same-list "move up/down" would produce,
+// mirroring moveArea/moveKeyQuestion's server-side logic exactly — a map of
+// {id -> new sequence} for the two swapped items, or null if there's
+// nothing to swap with (already first/last). Shared by the optimistic
+// patches for both area and key-question reordering below.
+function swappedSequences<T extends { id: string; sequence: number }>(
+  list: T[],
+  id: string,
+  direction: "up" | "down"
+): Map<string, number> | null {
+  const sorted = [...list].sort((a, b) => a.sequence - b.sequence)
+  const index = sorted.findIndex((item) => item.id === id)
+  const swapWith = direction === "up" ? index - 1 : index + 1
+  if (index === -1 || swapWith < 0 || swapWith >= sorted.length) return null
+  return new Map([
+    [sorted[index].id, sorted[swapWith].sequence],
+    [sorted[swapWith].id, sorted[index].sequence],
+  ])
+}
+
+// Mirrors updateKeyQuestion's Supabase payload — every KeyQuestionInput
+// field applied onto an existing KeyQuestion, for the optimistic patch on
+// edit-dialog submit. Deliberately excludes sequence/is_locked/links, which
+// the edit dialog never touches.
+function applyKeyQuestionInput(
+  kq: KeyQuestion,
+  input: KeyQuestionInput
+): KeyQuestion {
+  return {
+    ...kq,
+    area_of_enquiry_id: input.areaOfEnquiryId,
+    kq_number: input.kqNumber,
+    question_text: input.questionText,
+    short_name: input.shortName,
+    indicator_level_id: input.indicatorLevelId,
+    indicator_definition: input.indicatorDefinition,
+    action_text: input.actionText,
+    primary_user: input.primaryUser,
+    data_availability_status: input.dataAvailabilityStatus,
+    data_availability_note: input.dataAvailabilityNote,
+    priority: input.priority,
+    reason_for_priority: input.reasonForPriority,
+  }
+}
 
 // Ids of other KQs this one depends on, derived from the project's links.
 function dependsOnIdsForKq(kqId: string, links: KeyQuestionLink[]): string[] {
@@ -112,7 +158,7 @@ function ManageViewInner({
   indicatorLevels: IndicatorLevel[]
   links: KeyQuestionLink[]
 }) {
-  const { refresh } = useProjectData()
+  const { refresh, mutate } = useProjectData()
   const [, startTransition] = React.useTransition()
   const [newAreaNumber, setNewAreaNumber] = React.useState("")
   const [newAreaName, setNewAreaName] = React.useState("")
@@ -211,8 +257,8 @@ function ManageViewInner({
             indicatorLevels={indicatorLevels}
             isFirst={areaIndex === 0}
             isLast={areaIndex === areas.length - 1}
-            run={run}
             refresh={refresh}
+            mutate={mutate}
             titleQuery={filters.titleQuery}
           />
         )
@@ -266,8 +312,8 @@ function AreaSection({
   indicatorLevels,
   isFirst,
   isLast,
-  run,
   refresh,
+  mutate,
   titleQuery,
 }: {
   projectId: string
@@ -279,8 +325,11 @@ function AreaSection({
   indicatorLevels: IndicatorLevel[]
   isFirst: boolean
   isLast: boolean
-  run: (fn: () => Promise<void>) => void
   refresh: () => Promise<void>
+  mutate: (
+    patch: (data: ProjectData) => ProjectData,
+    action: () => Promise<void>
+  ) => Promise<void>
   titleQuery: string
 }) {
   const [editing, setEditing] = React.useState(false)
@@ -291,13 +340,25 @@ function AreaSection({
   const lockedCount = keyQuestions.filter((kq) => kq.is_locked).length
 
   async function saveName() {
-    if (
-      (name.trim() && name !== area.name) ||
-      areaNumber.trim() !== area.area_number
-    ) {
-      await renameArea(projectId, area.id, name.trim(), areaNumber.trim())
-    }
+    const trimmedName = name.trim()
+    const trimmedNumber = areaNumber.trim()
     setEditing(false)
+    if (
+      (trimmedName && trimmedName !== area.name) ||
+      trimmedNumber !== area.area_number
+    ) {
+      await mutate(
+        (data) => ({
+          ...data,
+          areas: data.areas.map((a) =>
+            a.id === area.id
+              ? { ...a, name: trimmedName || a.name, area_number: trimmedNumber }
+              : a
+          ),
+        }),
+        () => renameArea(projectId, area.id, trimmedName, trimmedNumber)
+      )
+    }
   }
 
   return (
@@ -310,11 +371,11 @@ function AreaSection({
                 autoFocus
                 value={areaNumber}
                 onChange={(e) => setAreaNumber(e.target.value)}
-                onBlur={() => run(saveName)}
+                onBlur={() => saveName()}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault()
-                    run(saveName)
+                    saveName()
                   }
                 }}
                 placeholder="AOE01"
@@ -323,11 +384,11 @@ function AreaSection({
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onBlur={() => run(saveName)}
+                onBlur={() => saveName()}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault()
-                    run(saveName)
+                    saveName()
                   }
                 }}
                 className="max-w-sm"
@@ -361,7 +422,21 @@ function AreaSection({
               variant="ghost"
               size="icon-sm"
               disabled={isFirst}
-              onClick={() => run(() => moveArea(projectId, area.id, "up"))}
+              onClick={() =>
+                mutate(
+                  (data) => {
+                    const swaps = swappedSequences(data.areas, area.id, "up")
+                    if (!swaps) return data
+                    return {
+                      ...data,
+                      areas: data.areas.map((a) =>
+                        swaps.has(a.id) ? { ...a, sequence: swaps.get(a.id)! } : a
+                      ),
+                    }
+                  },
+                  () => moveArea(projectId, area.id, "up")
+                )
+              }
               aria-label="Move area up"
             >
               <ChevronUp className="size-3.5" />
@@ -370,7 +445,21 @@ function AreaSection({
               variant="ghost"
               size="icon-sm"
               disabled={isLast}
-              onClick={() => run(() => moveArea(projectId, area.id, "down"))}
+              onClick={() =>
+                mutate(
+                  (data) => {
+                    const swaps = swappedSequences(data.areas, area.id, "down")
+                    if (!swaps) return data
+                    return {
+                      ...data,
+                      areas: data.areas.map((a) =>
+                        swaps.has(a.id) ? { ...a, sequence: swaps.get(a.id)! } : a
+                      ),
+                    }
+                  },
+                  () => moveArea(projectId, area.id, "down")
+                )
+              }
               aria-label="Move area down"
             >
               <ChevronDown className="size-3.5" />
@@ -399,7 +488,18 @@ function AreaSection({
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     variant="destructive"
-                    onClick={() => run(() => deleteArea(projectId, area.id))}
+                    onClick={() =>
+                      mutate(
+                        (data) => ({
+                          ...data,
+                          areas: data.areas.filter((a) => a.id !== area.id),
+                          keyQuestions: data.keyQuestions.filter(
+                            (k) => k.area_of_enquiry_id !== area.id
+                          ),
+                        }),
+                        () => deleteArea(projectId, area.id)
+                      )
+                    }
                   >
                     Delete
                   </AlertDialogAction>
@@ -421,8 +521,7 @@ function AreaSection({
             indicatorLevels={indicatorLevels}
             isFirst={kqIndex === 0}
             isLast={kqIndex === sorted.length - 1}
-            run={run}
-            refresh={refresh}
+            mutate={mutate}
             titleQuery={titleQuery}
           />
         ))}
@@ -459,8 +558,7 @@ function KqRow({
   indicatorLevels,
   isFirst,
   isLast,
-  run,
-  refresh,
+  mutate,
   titleQuery,
 }: {
   projectId: string
@@ -471,8 +569,10 @@ function KqRow({
   indicatorLevels: IndicatorLevel[]
   isFirst: boolean
   isLast: boolean
-  run: (fn: () => Promise<void>) => void
-  refresh: () => Promise<void>
+  mutate: (
+    patch: (data: ProjectData) => ProjectData,
+    action: () => Promise<void>
+  ) => Promise<void>
   titleQuery: string
 }) {
   const level = indicatorLevels.find((l) => l.id === kq.indicator_level_id)
@@ -523,8 +623,21 @@ function KqRow({
           size="icon-sm"
           disabled={isFirst}
           onClick={() =>
-            run(() =>
-              moveKeyQuestion(projectId, kq.area_of_enquiry_id, kq.id, "up")
+            mutate(
+              (data) => {
+                const areaKqs = data.keyQuestions.filter(
+                  (k) => k.area_of_enquiry_id === kq.area_of_enquiry_id
+                )
+                const swaps = swappedSequences(areaKqs, kq.id, "up")
+                if (!swaps) return data
+                return {
+                  ...data,
+                  keyQuestions: data.keyQuestions.map((k) =>
+                    swaps.has(k.id) ? { ...k, sequence: swaps.get(k.id)! } : k
+                  ),
+                }
+              },
+              () => moveKeyQuestion(projectId, kq.area_of_enquiry_id, kq.id, "up")
             )
           }
           aria-label="Move up"
@@ -536,8 +649,22 @@ function KqRow({
           size="icon-sm"
           disabled={isLast}
           onClick={() =>
-            run(() =>
-              moveKeyQuestion(projectId, kq.area_of_enquiry_id, kq.id, "down")
+            mutate(
+              (data) => {
+                const areaKqs = data.keyQuestions.filter(
+                  (k) => k.area_of_enquiry_id === kq.area_of_enquiry_id
+                )
+                const swaps = swappedSequences(areaKqs, kq.id, "down")
+                if (!swaps) return data
+                return {
+                  ...data,
+                  keyQuestions: data.keyQuestions.map((k) =>
+                    swaps.has(k.id) ? { ...k, sequence: swaps.get(k.id)! } : k
+                  ),
+                }
+              },
+              () =>
+                moveKeyQuestion(projectId, kq.area_of_enquiry_id, kq.id, "down")
             )
           }
           aria-label="Move down"
@@ -548,7 +675,15 @@ function KqRow({
           variant="ghost"
           size="icon-sm"
           onClick={() =>
-            run(() => setKeyQuestionLocked(projectId, kq.id, !kq.is_locked))
+            mutate(
+              (data) => ({
+                ...data,
+                keyQuestions: data.keyQuestions.map((k) =>
+                  k.id === kq.id ? { ...k, is_locked: !kq.is_locked } : k
+                ),
+              }),
+              () => setKeyQuestionLocked(projectId, kq.id, !kq.is_locked)
+            )
           }
           aria-label={kq.is_locked ? "Unlock" : "Lock"}
         >
@@ -564,10 +699,17 @@ function KqRow({
           allKeyQuestions={allKeyQuestions}
           keyQuestion={kq}
           initialDependsOnKqIds={dependsOnIdsForKq(kq.id, links)}
-          onSubmit={async (input: KeyQuestionInput) => {
-            await updateKeyQuestion(projectId, kq.id, input)
-            await refresh()
-          }}
+          onSubmit={(input: KeyQuestionInput) =>
+            mutate(
+              (data) => ({
+                ...data,
+                keyQuestions: data.keyQuestions.map((k) =>
+                  k.id === kq.id ? applyKeyQuestionInput(k, input) : k
+                ),
+              }),
+              () => updateKeyQuestion(projectId, kq.id, input)
+            )
+          }
           trigger={
             <Button variant="ghost" size="icon-sm" aria-label="Edit">
               <Pencil className="size-3.5" />
@@ -596,7 +738,17 @@ function KqRow({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
-                onClick={() => run(() => deleteKeyQuestion(projectId, kq.id))}
+                onClick={() =>
+                  mutate(
+                    (data) => ({
+                      ...data,
+                      keyQuestions: data.keyQuestions.filter(
+                        (k) => k.id !== kq.id
+                      ),
+                    }),
+                    () => deleteKeyQuestion(projectId, kq.id)
+                  )
+                }
               >
                 Delete
               </AlertDialogAction>

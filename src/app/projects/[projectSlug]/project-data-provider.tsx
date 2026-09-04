@@ -9,6 +9,17 @@ interface ProjectDataContextValue {
   data: ProjectData | null
   error: string | null
   refresh: () => Promise<void>
+  // Applies `patch` to the cached data immediately — visible before the
+  // mutation's network round trip completes — then runs `action` and
+  // resyncs with `refresh()`. The optimistic patch is discarded once the
+  // surrounding transition settles: on success `refresh()` brings in the
+  // real (now-matching) data, on failure it brings back the untouched real
+  // data, undoing the optimistic guess either way. Rethrows `action`'s
+  // error (after refresh() has run) so callers can show their own message.
+  mutate: (
+    patch: (data: ProjectData) => ProjectData,
+    action: () => Promise<void>
+  ) => Promise<void>
 }
 
 const ProjectDataContext = React.createContext<ProjectDataContextValue | null>(
@@ -20,7 +31,8 @@ const ProjectDataContext = React.createContext<ProjectDataContextValue | null>(
 // `error` is set (render an error/not-found state instead). Once loaded,
 // `data` stays populated — including across view switches, since the
 // Provider isn't remounted — and only changes when `refresh()` is called
-// after a mutation.
+// after a mutation, or transiently when `mutate()`'s optimistic patch is
+// showing.
 export function useProjectData() {
   const ctx = React.useContext(ProjectDataContext)
   if (!ctx) {
@@ -38,6 +50,16 @@ export function ProjectDataProvider({
 }) {
   const [data, setData] = React.useState<ProjectData | null>(null)
   const [error, setError] = React.useState<string | null>(null)
+  // Overlays an in-flight optimistic patch on top of `data`, resetting back
+  // to `data` automatically once the transition that applied it settles
+  // (see `mutate`). `ProjectDataGate`/`useProjectData()` hand out this
+  // value, not the raw `data` state, so a view needs no changes to benefit
+  // once its mutation call site switches from a bare refresh() to mutate().
+  const [optimisticData, applyOptimisticPatch] = React.useOptimistic(
+    data,
+    (current: ProjectData | null, patch: (data: ProjectData) => ProjectData) =>
+      current ? patch(current) : current
+  )
 
   const refresh = React.useCallback(async () => {
     try {
@@ -52,6 +74,28 @@ export function ProjectDataProvider({
       setError("Couldn't load this project — try refreshing the page.")
     }
   }, [projectSlug])
+
+  const mutate = React.useCallback(
+    (patch: (data: ProjectData) => ProjectData, action: () => Promise<void>) =>
+      new Promise<void>((resolve, reject) => {
+        // useOptimistic's dispatch must happen inside a transition — this
+        // is that transition. Its async callback keeps React's pending
+        // state (and the optimistic overlay) alive until refresh() below
+        // resolves, whether action() succeeded or threw.
+        React.startTransition(async () => {
+          applyOptimisticPatch(patch)
+          try {
+            await action()
+            resolve()
+          } catch (err) {
+            reject(err)
+          } finally {
+            await refresh()
+          }
+        })
+      }),
+    [refresh, applyOptimisticPatch]
+  )
 
   // Fires once per distinct projectSlug, not on every view switch — this
   // component instance persists across client-side navigation between
@@ -82,8 +126,8 @@ export function ProjectDataProvider({
   }, [projectSlug])
 
   const value = React.useMemo(
-    () => ({ data, error, refresh }),
-    [data, error, refresh]
+    () => ({ data: optimisticData, error, refresh, mutate }),
+    [optimisticData, error, refresh, mutate]
   )
 
   return (

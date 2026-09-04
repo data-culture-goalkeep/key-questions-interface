@@ -15,13 +15,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { ProjectData } from "@/lib/project-data"
 import {
   dataAvailabilityLabel,
   type CommentType,
   type KeyQuestion,
+  type KeyQuestionComment,
 } from "@/lib/types"
 import { useProjectData } from "../project-data-provider"
 import { addComment, setCommentResolved, toggleVerified } from "./actions"
+
+// Applies `updater` to the one matching key question within `data`, for
+// the optimistic patches below — every action here only ever touches the
+// single KQ this component renders.
+function patchKq(
+  data: ProjectData,
+  kqId: string,
+  updater: (kq: KeyQuestion) => KeyQuestion
+): ProjectData {
+  return {
+    ...data,
+    keyQuestions: data.keyQuestions.map((k) => (k.id === kqId ? updater(k) : k)),
+  }
+}
 
 // The field list, comments thread, and comment/verify action bar for one
 // key question — shared between the List view's inline expanded card and
@@ -37,18 +53,23 @@ export function KqDetailContent({
   role: "facilitator" | "client"
   userId: string
 }) {
-  const { refresh } = useProjectData()
+  const { data: projectData, mutate } = useProjectData()
   const [pending, startTransition] = React.useTransition()
   const [commentText, setCommentText] = React.useState("")
   const [commentType, setCommentType] = React.useState<CommentType>("general")
   const [actionError, setActionError] = React.useState<string | null>(null)
 
-  function runAction(fn: () => Promise<void>) {
+  // Applies `patch` immediately (via the shared provider's optimistic
+  // overlay), then runs `action`; mutate() always resyncs with refresh()
+  // afterward, so a failed action's optimistic guess gets reverted too.
+  function runAction(
+    patch: (data: ProjectData) => ProjectData,
+    action: () => Promise<void>
+  ) {
     setActionError(null)
     startTransition(async () => {
       try {
-        await fn()
-        await refresh()
+        await mutate(patch, action)
       } catch {
         setActionError(
           "That didn't go through — this key question may have just been locked. Refresh and try again."
@@ -68,10 +89,28 @@ export function KqDetailContent({
     e.preventDefault()
     if (!commentText.trim()) return
     const text = commentText.trim()
-    runAction(async () => {
-      await addComment(projectId, kq.id, text, commentType)
-      setCommentText("")
-    })
+    const optimisticComment: KeyQuestionComment = {
+      id: crypto.randomUUID(),
+      key_question_id: kq.id,
+      author_id: userId,
+      author_email: projectData?.userEmail ?? "",
+      comment_text: text,
+      comment_type: commentType,
+      status: "open",
+      created_at: new Date().toISOString(),
+    }
+    setCommentText("")
+    runAction(
+      (data) =>
+        patchKq(data, kq.id, (k) => ({
+          ...k,
+          key_question_comments: [
+            ...(k.key_question_comments ?? []),
+            optimisticComment,
+          ],
+        })),
+      () => addComment(projectId, kq.id, text, commentType)
+    )
   }
 
   return (
@@ -169,12 +208,28 @@ export function KqDetailContent({
                       size="xs"
                       disabled={pending}
                       onClick={() =>
-                        runAction(() =>
-                          setCommentResolved(
-                            projectId,
-                            c.id,
-                            c.status === "open"
-                          )
+                        runAction(
+                          (data) =>
+                            patchKq(data, kq.id, (k) => ({
+                              ...k,
+                              key_question_comments: (
+                                k.key_question_comments ?? []
+                              ).map((cm) =>
+                                cm.id === c.id
+                                  ? {
+                                      ...cm,
+                                      status:
+                                        c.status === "open" ? "resolved" : "open",
+                                    }
+                                  : cm
+                              ),
+                            })),
+                          () =>
+                            setCommentResolved(
+                              projectId,
+                              c.id,
+                              c.status === "open"
+                            )
                         )
                       }
                     >
@@ -245,7 +300,27 @@ export function KqDetailContent({
                     size="sm"
                     disabled={pending}
                     onClick={() =>
-                      runAction(() => toggleVerified(projectId, kq.id, isVerified))
+                      runAction(
+                        (data) =>
+                          patchKq(data, kq.id, (k) => ({
+                            ...k,
+                            key_question_client_reviews: isVerified
+                              ? (k.key_question_client_reviews ?? []).filter(
+                                  (r) => r.user_id !== userId
+                                )
+                              : [
+                                  ...(k.key_question_client_reviews ?? []),
+                                  {
+                                    id: crypto.randomUUID(),
+                                    key_question_id: kq.id,
+                                    user_id: userId,
+                                    user_email: projectData?.userEmail ?? "",
+                                    verified_at: new Date().toISOString(),
+                                  },
+                                ],
+                          })),
+                        () => toggleVerified(projectId, kq.id, isVerified)
+                      )
                     }
                     className="gap-1.5"
                   >
