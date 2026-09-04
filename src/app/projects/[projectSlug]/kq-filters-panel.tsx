@@ -13,11 +13,14 @@ import {
   type IndicatorLevel,
   type Priority,
 } from "@/lib/types"
-import { PROJECT_SIDEBAR_SLOT_ID } from "../project-sidebar"
+import { PROJECT_SIDEBAR_SLOT_ID } from "./project-sidebar"
 
 export type LockFilter = "all" | "locked" | "unlocked"
 
-export interface ReviewFilters {
+// Shared by every page that lists key questions (Review, Manage — Prioritize
+// is a deliberate follow-up, since its rows live inside dnd-kit sortable
+// lists and filtering interacts with drag order).
+export interface KqFilters {
   titleQuery: string
   levelId: string | null
   priority: Priority | null
@@ -25,7 +28,7 @@ export interface ReviewFilters {
   lockFilter: LockFilter
 }
 
-export const EMPTY_REVIEW_FILTERS: ReviewFilters = {
+export const EMPTY_KQ_FILTERS: KqFilters = {
   titleQuery: "",
   levelId: null,
   priority: null,
@@ -101,8 +104,10 @@ function StageFilterChip({
 // ProjectSidebar's slot) rather than as a second column next to the
 // content — one left-hand region instead of two competing for horizontal
 // space. Returns null (renders nothing in place) until the portal target
-// exists in the DOM.
-export function ReviewSidebar({
+// exists in the DOM. Only one page's filter panel is ever mounted at a
+// time (client-side route switch unmounts the previous page), so sharing
+// one portal slot across pages is safe.
+export function KqFiltersPanel({
   areas,
   indicatorLevels,
   filters,
@@ -110,8 +115,8 @@ export function ReviewSidebar({
 }: {
   areas: AreaOfEnquiry[]
   indicatorLevels: IndicatorLevel[]
-  filters: ReviewFilters
-  onFiltersChange: (filters: ReviewFilters) => void
+  filters: KqFilters
+  onFiltersChange: (filters: KqFilters) => void
 }) {
   const [slot, setSlot] = React.useState<HTMLElement | null>(null)
 
@@ -162,7 +167,7 @@ export function ReviewSidebar({
             <button
               type="button"
               className="text-[11px] text-muted-foreground underline-offset-2 hover:underline"
-              onClick={() => onFiltersChange(EMPTY_REVIEW_FILTERS)}
+              onClick={() => onFiltersChange(EMPTY_KQ_FILTERS)}
             >
               Clear all
             </button>

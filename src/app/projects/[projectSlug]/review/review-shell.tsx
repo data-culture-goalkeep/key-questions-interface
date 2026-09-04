@@ -11,15 +11,11 @@ import type {
 } from "@/lib/types"
 
 import { ProjectDataGate } from "../project-data-provider"
+import { EMPTY_KQ_FILTERS, KqFiltersPanel, type KqFilters } from "../kq-filters-panel"
 import { KqDetailPanel } from "./kq-detail-panel"
 import { ListView } from "./list-view"
 import { MapView } from "./map-view"
 import { ReviewHero } from "./review-hero"
-import {
-  EMPTY_REVIEW_FILTERS,
-  ReviewSidebar,
-  type ReviewFilters,
-} from "./review-sidebar"
 
 export function ReviewShell() {
   return (
@@ -68,9 +64,7 @@ function ReviewShellInner({
   // didn't change in that moment.
   const [focusToken, setFocusToken] = React.useState(0)
 
-  const [filters, setFilters] = React.useState<ReviewFilters>(
-    EMPTY_REVIEW_FILTERS
-  )
+  const [filters, setFilters] = React.useState<KqFilters>(EMPTY_KQ_FILTERS)
 
   const filteredKeyQuestions = React.useMemo(() => {
     const titleQuery = filters.titleQuery.trim().toLowerCase()
@@ -117,7 +111,7 @@ function ReviewShellInner({
       {/* Renders nothing here — portals its content into the persistent
           left nav rail (ProjectSidebar) so filters live in one left-hand
           region instead of a second column competing for space. */}
-      <ReviewSidebar
+      <KqFiltersPanel
         areas={areas}
         indicatorLevels={indicatorLevels}
         filters={filters}

@@ -42,6 +42,7 @@ import {
   type KeyQuestionLink,
 } from "@/lib/types"
 import { ProjectDataGate, useProjectData } from "../project-data-provider"
+import { EMPTY_KQ_FILTERS, KqFiltersPanel, type KqFilters } from "../kq-filters-panel"
 import {
   createArea,
   renameArea,
@@ -115,15 +116,33 @@ function ManageViewInner({
   const [, startTransition] = React.useTransition()
   const [newAreaNumber, setNewAreaNumber] = React.useState("")
   const [newAreaName, setNewAreaName] = React.useState("")
-  const [titleQuery, setTitleQuery] = React.useState("")
+  const [filters, setFilters] = React.useState<KqFilters>(EMPTY_KQ_FILTERS)
+
+  const hasActiveFilters =
+    filters.titleQuery.trim() !== "" ||
+    filters.levelId !== null ||
+    filters.priority !== null ||
+    filters.areaId !== null ||
+    filters.lockFilter !== "all"
 
   const filteredKeyQuestions = React.useMemo(() => {
-    const query = titleQuery.trim().toLowerCase()
-    if (!query) return keyQuestions
-    return keyQuestions.filter((kq) =>
-      kq.question_text.toLowerCase().includes(query)
-    )
-  }, [keyQuestions, titleQuery])
+    const titleQuery = filters.titleQuery.trim().toLowerCase()
+    return keyQuestions.filter((kq) => {
+      if (titleQuery && !kq.question_text.toLowerCase().includes(titleQuery)) {
+        return false
+      }
+      if (filters.levelId && kq.indicator_level_id !== filters.levelId) {
+        return false
+      }
+      if (filters.priority && kq.priority !== filters.priority) return false
+      if (filters.areaId && kq.area_of_enquiry_id !== filters.areaId) {
+        return false
+      }
+      if (filters.lockFilter === "locked" && !kq.is_locked) return false
+      if (filters.lockFilter === "unlocked" && kq.is_locked) return false
+      return true
+    })
+  }, [keyQuestions, filters])
 
   const kqsByArea = React.useMemo(() => {
     const map = new Map<string, KeyQuestion[]>()
@@ -162,23 +181,24 @@ function ManageViewInner({
         </p>
       </div>
 
-      <Input
-        value={titleQuery}
-        onChange={(e) => setTitleQuery(e.target.value)}
-        placeholder="Search key questions by title…"
-        className="max-w-sm"
-        aria-label="Search key questions by title"
+      {/* Renders nothing here — portals its content into the persistent
+          left nav rail (ProjectSidebar), shared with Review's filters. */}
+      <KqFiltersPanel
+        areas={areas}
+        indicatorLevels={indicatorLevels}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
 
-      {titleQuery.trim() && filteredKeyQuestions.length === 0 && (
+      {hasActiveFilters && filteredKeyQuestions.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No key questions match &quot;{titleQuery.trim()}&quot;.
+          No key questions match the current filters.
         </p>
       )}
 
       {areas.map((area, areaIndex) => {
         const areaKqs = kqsByArea.get(area.id) ?? []
-        if (titleQuery.trim() && areaKqs.length === 0) return null
+        if (hasActiveFilters && areaKqs.length === 0) return null
         return (
           <AreaSection
             key={area.id}
@@ -193,7 +213,7 @@ function ManageViewInner({
             isLast={areaIndex === areas.length - 1}
             run={run}
             refresh={refresh}
-            titleQuery={titleQuery}
+            titleQuery={filters.titleQuery}
           />
         )
       })}
