@@ -73,7 +73,11 @@ function ReviewShellInner({
   )
 
   const filteredKeyQuestions = React.useMemo(() => {
+    const titleQuery = filters.titleQuery.trim().toLowerCase()
     return keyQuestions.filter((kq) => {
+      if (titleQuery && !kq.question_text.toLowerCase().includes(titleQuery)) {
+        return false
+      }
       if (filters.levelId && kq.indicator_level_id !== filters.levelId) {
         return false
       }
@@ -137,6 +141,7 @@ function ReviewShellInner({
             selectedKqId={selectedKqId}
             focusToken={focusToken}
             onSelectKq={setSelectedKqId}
+            titleQuery={filters.titleQuery}
           />
         </TabsContent>
 

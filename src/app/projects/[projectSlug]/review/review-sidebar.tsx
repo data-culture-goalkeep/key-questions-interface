@@ -4,6 +4,7 @@ import * as React from "react"
 import { createPortal } from "react-dom"
 
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
@@ -17,6 +18,7 @@ import { PROJECT_SIDEBAR_SLOT_ID } from "../project-sidebar"
 export type LockFilter = "all" | "locked" | "unlocked"
 
 export interface ReviewFilters {
+  titleQuery: string
   levelId: string | null
   priority: Priority | null
   areaId: string | null
@@ -24,6 +26,7 @@ export interface ReviewFilters {
 }
 
 export const EMPTY_REVIEW_FILTERS: ReviewFilters = {
+  titleQuery: "",
   levelId: null,
   priority: null,
   areaId: null,
@@ -140,6 +143,7 @@ export function ReviewSidebar({
   }
 
   const hasActiveFilters =
+    filters.titleQuery.trim() !== "" ||
     filters.levelId !== null ||
     filters.priority !== null ||
     filters.areaId !== null ||
@@ -164,6 +168,16 @@ export function ReviewSidebar({
             </button>
           )}
         </div>
+
+        <Input
+          value={filters.titleQuery}
+          onChange={(e) =>
+            onFiltersChange({ ...filters, titleQuery: e.target.value })
+          }
+          placeholder="Search by title…"
+          className="h-8 text-[13px]"
+          aria-label="Search key questions by title"
+        />
 
         <div className="flex flex-col gap-1.5">
           <span className="text-[11px] text-muted-foreground">
