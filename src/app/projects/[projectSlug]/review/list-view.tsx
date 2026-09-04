@@ -15,6 +15,7 @@ export function ListView({
   selectedKqId,
   focusToken,
   onSelectKq,
+  titleQuery,
 }: {
   projectId: string
   userId: string
@@ -25,6 +26,7 @@ export function ListView({
   selectedKqId: string | null
   focusToken?: number
   onSelectKq: (kqId: string | null) => void
+  titleQuery?: string
 }) {
   React.useEffect(() => {
     if (!selectedKqId) return
@@ -92,6 +94,7 @@ export function ListView({
                   indicatorLevels={indicatorLevels}
                   open={selectedKqId === kq.id}
                   onOpenChange={(open) => onSelectKq(open ? kq.id : null)}
+                  titleQuery={titleQuery}
                 />
               ))}
             </div>

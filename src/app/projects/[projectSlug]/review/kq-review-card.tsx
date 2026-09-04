@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import { PriorityIndicator } from "@/components/priority-indicator"
+import { highlightMatch } from "@/lib/highlight-match"
 import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
   indicatorLevelLabel,
@@ -28,6 +29,7 @@ export function KqReviewCard({
   indicatorLevels,
   open,
   onOpenChange,
+  titleQuery,
 }: {
   projectId: string
   kq: KeyQuestion
@@ -36,6 +38,7 @@ export function KqReviewCard({
   indicatorLevels: IndicatorLevel[]
   open: boolean
   onOpenChange: (open: boolean) => void
+  titleQuery?: string
 }) {
   const commentCount = kq.key_question_comments?.length ?? 0
   const openComments =
@@ -79,7 +82,9 @@ export function KqReviewCard({
                   )}
                 </div>
                 <CardTitle className="text-base leading-snug font-medium">
-                  {kq.question_text}
+                  {titleQuery
+                    ? highlightMatch(kq.question_text, titleQuery)
+                    : kq.question_text}
                 </CardTitle>
               </div>
               <div className="flex shrink-0 items-center gap-2 text-muted-foreground">

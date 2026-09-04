@@ -31,6 +31,7 @@ import {
 
 import { PageSkeleton } from "@/components/page-skeleton"
 import { PriorityIndicator } from "@/components/priority-indicator"
+import { highlightMatch } from "@/lib/highlight-match"
 import { cn } from "@/lib/utils"
 import { stageColorsForLevel } from "@/lib/stage-colors"
 import {
@@ -41,6 +42,7 @@ import {
   type KeyQuestionLink,
 } from "@/lib/types"
 import { ProjectDataGate, useProjectData } from "../project-data-provider"
+import { EMPTY_KQ_FILTERS, KqFiltersPanel, type KqFilters } from "../kq-filters-panel"
 import {
   createArea,
   renameArea,
@@ -114,16 +116,43 @@ function ManageViewInner({
   const [, startTransition] = React.useTransition()
   const [newAreaNumber, setNewAreaNumber] = React.useState("")
   const [newAreaName, setNewAreaName] = React.useState("")
+  const [filters, setFilters] = React.useState<KqFilters>(EMPTY_KQ_FILTERS)
+
+  const hasActiveFilters =
+    filters.titleQuery.trim() !== "" ||
+    filters.levelId !== null ||
+    filters.priority !== null ||
+    filters.areaId !== null ||
+    filters.lockFilter !== "all"
+
+  const filteredKeyQuestions = React.useMemo(() => {
+    const titleQuery = filters.titleQuery.trim().toLowerCase()
+    return keyQuestions.filter((kq) => {
+      if (titleQuery && !kq.question_text.toLowerCase().includes(titleQuery)) {
+        return false
+      }
+      if (filters.levelId && kq.indicator_level_id !== filters.levelId) {
+        return false
+      }
+      if (filters.priority && kq.priority !== filters.priority) return false
+      if (filters.areaId && kq.area_of_enquiry_id !== filters.areaId) {
+        return false
+      }
+      if (filters.lockFilter === "locked" && !kq.is_locked) return false
+      if (filters.lockFilter === "unlocked" && kq.is_locked) return false
+      return true
+    })
+  }, [keyQuestions, filters])
 
   const kqsByArea = React.useMemo(() => {
     const map = new Map<string, KeyQuestion[]>()
-    for (const kq of keyQuestions) {
+    for (const kq of filteredKeyQuestions) {
       const list = map.get(kq.area_of_enquiry_id) ?? []
       list.push(kq)
       map.set(kq.area_of_enquiry_id, list)
     }
     return map
-  }, [keyQuestions])
+  }, [filteredKeyQuestions])
 
   function run(fn: () => Promise<void>) {
     startTransition(async () => {
@@ -152,22 +181,42 @@ function ManageViewInner({
         </p>
       </div>
 
-      {areas.map((area, areaIndex) => (
-        <AreaSection
-          key={area.id}
-          projectId={projectId}
-          area={area}
-          areas={areas}
-          keyQuestions={kqsByArea.get(area.id) ?? []}
-          allKeyQuestions={keyQuestions}
-          links={links}
-          indicatorLevels={indicatorLevels}
-          isFirst={areaIndex === 0}
-          isLast={areaIndex === areas.length - 1}
-          run={run}
-          refresh={refresh}
-        />
-      ))}
+      {/* Renders nothing here — portals its content into the persistent
+          left nav rail (ProjectSidebar), shared with Review's filters. */}
+      <KqFiltersPanel
+        areas={areas}
+        indicatorLevels={indicatorLevels}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
+
+      {hasActiveFilters && filteredKeyQuestions.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No key questions match the current filters.
+        </p>
+      )}
+
+      {areas.map((area, areaIndex) => {
+        const areaKqs = kqsByArea.get(area.id) ?? []
+        if (hasActiveFilters && areaKqs.length === 0) return null
+        return (
+          <AreaSection
+            key={area.id}
+            projectId={projectId}
+            area={area}
+            areas={areas}
+            keyQuestions={areaKqs}
+            allKeyQuestions={keyQuestions}
+            links={links}
+            indicatorLevels={indicatorLevels}
+            isFirst={areaIndex === 0}
+            isLast={areaIndex === areas.length - 1}
+            run={run}
+            refresh={refresh}
+            titleQuery={filters.titleQuery}
+          />
+        )
+      })}
 
       <div className="flex items-center gap-2 rounded-card border border-dashed border-foreground/30 p-4">
         <Input
@@ -219,6 +268,7 @@ function AreaSection({
   isLast,
   run,
   refresh,
+  titleQuery,
 }: {
   projectId: string
   area: AreaOfEnquiry
@@ -231,6 +281,7 @@ function AreaSection({
   isLast: boolean
   run: (fn: () => Promise<void>) => void
   refresh: () => Promise<void>
+  titleQuery: string
 }) {
   const [editing, setEditing] = React.useState(false)
   const [areaNumber, setAreaNumber] = React.useState(area.area_number)
@@ -372,6 +423,7 @@ function AreaSection({
             isLast={kqIndex === sorted.length - 1}
             run={run}
             refresh={refresh}
+            titleQuery={titleQuery}
           />
         ))}
 
@@ -409,6 +461,7 @@ function KqRow({
   isLast,
   run,
   refresh,
+  titleQuery,
 }: {
   projectId: string
   areas: AreaOfEnquiry[]
@@ -420,6 +473,7 @@ function KqRow({
   isLast: boolean
   run: (fn: () => Promise<void>) => void
   refresh: () => Promise<void>
+  titleQuery: string
 }) {
   const level = indicatorLevels.find((l) => l.id === kq.indicator_level_id)
   const stage = level ? stageColorsForLevel(level, indicatorLevels) : null
@@ -456,7 +510,11 @@ function KqRow({
             </Badge>
           )}
         </div>
-        <p className="text-sm">{kq.question_text}</p>
+        <p className="text-sm">
+          {titleQuery.trim()
+            ? highlightMatch(kq.question_text, titleQuery)
+            : kq.question_text}
+        </p>
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border p-0.5">
