@@ -160,9 +160,30 @@ function ManageViewInner({
 }) {
   const { refresh, mutate } = useProjectData()
   const [, startTransition] = React.useTransition()
+  const [pending, startMutationTransition] = React.useTransition()
+  const [actionError, setActionError] = React.useState<string | null>(null)
   const [newAreaNumber, setNewAreaNumber] = React.useState("")
   const [newAreaName, setNewAreaName] = React.useState("")
   const [filters, setFilters] = React.useState<KqFilters>(EMPTY_KQ_FILTERS)
+
+  // Wraps mutate() with a shared pending flag (so every reorder/lock/delete
+  // button in this view disables together, preventing a double-click from
+  // racing the server's non-atomic sequence swap) and a visible error
+  // message, mirroring review/kq-detail-content.tsx's runAction pattern —
+  // a bare mutate() call here previously had neither.
+  function runMutation(
+    patch: (data: ProjectData) => ProjectData,
+    action: () => Promise<void>
+  ) {
+    setActionError(null)
+    startMutationTransition(async () => {
+      try {
+        await mutate(patch, action)
+      } catch {
+        setActionError("That didn't go through — try again.")
+      }
+    })
+  }
 
   const hasActiveFilters =
     filters.titleQuery.trim() !== "" ||
@@ -236,6 +257,10 @@ function ManageViewInner({
         onFiltersChange={setFilters}
       />
 
+      {actionError && (
+        <p className="text-sm text-destructive">{actionError}</p>
+      )}
+
       {hasActiveFilters && filteredKeyQuestions.length === 0 && (
         <p className="text-sm text-muted-foreground">
           No key questions match the current filters.
@@ -259,6 +284,8 @@ function ManageViewInner({
             isLast={areaIndex === areas.length - 1}
             refresh={refresh}
             mutate={mutate}
+            runMutation={runMutation}
+            pending={pending}
             titleQuery={filters.titleQuery}
           />
         )
@@ -314,6 +341,8 @@ function AreaSection({
   isLast,
   refresh,
   mutate,
+  runMutation,
+  pending,
   titleQuery,
 }: {
   projectId: string
@@ -330,29 +359,44 @@ function AreaSection({
     patch: (data: ProjectData) => ProjectData,
     action: () => Promise<void>
   ) => Promise<void>
+  runMutation: (
+    patch: (data: ProjectData) => ProjectData,
+    action: () => Promise<void>
+  ) => void
+  pending: boolean
   titleQuery: string
 }) {
   const [editing, setEditing] = React.useState(false)
   const [areaNumber, setAreaNumber] = React.useState(area.area_number)
   const [name, setName] = React.useState(area.name)
+  // Adjusted during render (React's documented alternative to an effect for
+  // "reset local state when a prop changes") rather than via useEffect, so
+  // a resync happens in the same render pass instead of a follow-up one.
+  const [prevArea, setPrevArea] = React.useState(area)
+  if (!editing && prevArea !== area) {
+    // Resyncs from the server-derived `area` prop whenever it changes (e.g.
+    // refresh() reverting a failed rename) as long as the user isn't
+    // actively editing — without this, a failed save left the rejected
+    // input sitting in local state indefinitely, invisible until reopened.
+    setPrevArea(area)
+    setAreaNumber(area.area_number)
+    setName(area.name)
+  }
 
   const sorted = [...keyQuestions].sort((a, b) => a.sequence - b.sequence)
   const lockedCount = keyQuestions.filter((kq) => kq.is_locked).length
 
-  async function saveName() {
-    const trimmedName = name.trim()
+  function saveName() {
+    const trimmedName = name.trim() || area.name
     const trimmedNumber = areaNumber.trim()
     setEditing(false)
-    if (
-      (trimmedName && trimmedName !== area.name) ||
-      trimmedNumber !== area.area_number
-    ) {
-      await mutate(
+    if (trimmedName !== area.name || trimmedNumber !== area.area_number) {
+      runMutation(
         (data) => ({
           ...data,
           areas: data.areas.map((a) =>
             a.id === area.id
-              ? { ...a, name: trimmedName || a.name, area_number: trimmedNumber }
+              ? { ...a, name: trimmedName, area_number: trimmedNumber }
               : a
           ),
         }),
@@ -421,9 +465,9 @@ function AreaSection({
             <Button
               variant="ghost"
               size="icon-sm"
-              disabled={isFirst}
+              disabled={isFirst || pending}
               onClick={() =>
-                mutate(
+                runMutation(
                   (data) => {
                     const swaps = swappedSequences(data.areas, area.id, "up")
                     if (!swaps) return data
@@ -444,9 +488,9 @@ function AreaSection({
             <Button
               variant="ghost"
               size="icon-sm"
-              disabled={isLast}
+              disabled={isLast || pending}
               onClick={() =>
-                mutate(
+                runMutation(
                   (data) => {
                     const swaps = swappedSequences(data.areas, area.id, "down")
                     if (!swaps) return data
@@ -488,8 +532,9 @@ function AreaSection({
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     variant="destructive"
+                    disabled={pending}
                     onClick={() =>
-                      mutate(
+                      runMutation(
                         (data) => ({
                           ...data,
                           areas: data.areas.filter((a) => a.id !== area.id),
@@ -522,6 +567,8 @@ function AreaSection({
             isFirst={kqIndex === 0}
             isLast={kqIndex === sorted.length - 1}
             mutate={mutate}
+            runMutation={runMutation}
+            pending={pending}
             titleQuery={titleQuery}
           />
         ))}
@@ -559,6 +606,8 @@ function KqRow({
   isFirst,
   isLast,
   mutate,
+  runMutation,
+  pending,
   titleQuery,
 }: {
   projectId: string
@@ -573,6 +622,11 @@ function KqRow({
     patch: (data: ProjectData) => ProjectData,
     action: () => Promise<void>
   ) => Promise<void>
+  runMutation: (
+    patch: (data: ProjectData) => ProjectData,
+    action: () => Promise<void>
+  ) => void
+  pending: boolean
   titleQuery: string
 }) {
   const level = indicatorLevels.find((l) => l.id === kq.indicator_level_id)
@@ -621,9 +675,9 @@ function KqRow({
         <Button
           variant="ghost"
           size="icon-sm"
-          disabled={isFirst}
+          disabled={isFirst || pending}
           onClick={() =>
-            mutate(
+            runMutation(
               (data) => {
                 const areaKqs = data.keyQuestions.filter(
                   (k) => k.area_of_enquiry_id === kq.area_of_enquiry_id
@@ -647,9 +701,9 @@ function KqRow({
         <Button
           variant="ghost"
           size="icon-sm"
-          disabled={isLast}
+          disabled={isLast || pending}
           onClick={() =>
-            mutate(
+            runMutation(
               (data) => {
                 const areaKqs = data.keyQuestions.filter(
                   (k) => k.area_of_enquiry_id === kq.area_of_enquiry_id
@@ -674,8 +728,9 @@ function KqRow({
         <Button
           variant="ghost"
           size="icon-sm"
+          disabled={pending}
           onClick={() =>
-            mutate(
+            runMutation(
               (data) => ({
                 ...data,
                 keyQuestions: data.keyQuestions.map((k) =>
@@ -738,8 +793,9 @@ function KqRow({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
+                disabled={pending}
                 onClick={() =>
-                  mutate(
+                  runMutation(
                     (data) => ({
                       ...data,
                       keyQuestions: data.keyQuestions.filter(

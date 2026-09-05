@@ -61,9 +61,17 @@ export function ProjectDataProvider({
       current ? patch(current) : current
   )
 
+  // Guards against two overlapping refresh() calls (e.g. from two quick
+  // mutate() calls) resolving out of order — only the response from the
+  // most recently *started* refresh() is ever applied, mirroring the
+  // ignore-flag pattern the mount effect below already uses.
+  const refreshSeq = React.useRef(0)
+
   const refresh = React.useCallback(async () => {
+    const seq = ++refreshSeq.current
     try {
       const result = await getProjectData(projectSlug)
+      if (seq !== refreshSeq.current) return
       if (!result) {
         setError("This project couldn't be found.")
         return
@@ -71,6 +79,7 @@ export function ProjectDataProvider({
       setData(result)
       setError(null)
     } catch {
+      if (seq !== refreshSeq.current) return
       setError("Couldn't load this project — try refreshing the page.")
     }
   }, [projectSlug])
@@ -81,17 +90,23 @@ export function ProjectDataProvider({
         // useOptimistic's dispatch must happen inside a transition — this
         // is that transition. Its async callback keeps React's pending
         // state (and the optimistic overlay) alive until refresh() below
-        // resolves, whether action() succeeded or threw.
+        // resolves, whether action() succeeded or threw. resolve()/reject()
+        // are called only after refresh() completes, so a caller awaiting
+        // mutate() can rely on the cache actually being resynced by then —
+        // e.g. a fake client-side id from an optimistic patch is guaranteed
+        // to have been replaced by refresh()'s real data before anything
+        // downstream (like a re-enabled button) can act on it again.
         React.startTransition(async () => {
           applyOptimisticPatch(patch)
+          let actionError: unknown
           try {
             await action()
-            resolve()
           } catch (err) {
-            reject(err)
-          } finally {
-            await refresh()
+            actionError = err
           }
+          await refresh()
+          if (actionError) reject(actionError)
+          else resolve()
         })
       }),
     [refresh, applyOptimisticPatch]

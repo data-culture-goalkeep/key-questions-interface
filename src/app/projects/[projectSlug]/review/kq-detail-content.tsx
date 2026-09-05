@@ -299,7 +299,19 @@ export function KqDetailContent({
                     variant={isVerified ? "secondary" : "default"}
                     size="sm"
                     disabled={pending}
-                    onClick={() =>
+                    onClick={() => {
+                      // Precomputed outside the patch closure — React's
+                      // useOptimistic updater must stay pure (it can be
+                      // invoked more than once for the same dispatch, e.g.
+                      // under Strict Mode's double-invocation), so it can't
+                      // call crypto.randomUUID()/new Date() itself.
+                      const optimisticReview = {
+                        id: crypto.randomUUID(),
+                        key_question_id: kq.id,
+                        user_id: userId,
+                        user_email: projectData?.userEmail ?? "",
+                        verified_at: new Date().toISOString(),
+                      }
                       runAction(
                         (data) =>
                           patchKq(data, kq.id, (k) => ({
@@ -310,18 +322,12 @@ export function KqDetailContent({
                                 )
                               : [
                                   ...(k.key_question_client_reviews ?? []),
-                                  {
-                                    id: crypto.randomUUID(),
-                                    key_question_id: kq.id,
-                                    user_id: userId,
-                                    user_email: projectData?.userEmail ?? "",
-                                    verified_at: new Date().toISOString(),
-                                  },
+                                  optimisticReview,
                                 ],
                           })),
                         () => toggleVerified(projectId, kq.id, isVerified)
                       )
-                    }
+                    }}
                     className="gap-1.5"
                   >
                     <CheckCircle2 className="size-3.5" />
