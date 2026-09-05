@@ -103,6 +103,7 @@ export function KqFormDialog({
 }) {
   const [open, setOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
+  const [submitError, setSubmitError] = React.useState<string | null>(null)
   const [form, setForm] = React.useState<KeyQuestionInput>(
     keyQuestion
       ? toForm(keyQuestion, initialDependsOnKqIds ?? [])
@@ -115,9 +116,12 @@ export function KqFormDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setSubmitError(null)
     try {
       await onSubmit(form)
       setOpen(false)
+    } catch {
+      setSubmitError("That didn't save — try again.")
     } finally {
       setSaving(false)
     }
@@ -184,7 +188,13 @@ export function KqFormDialog({
   const needsAvailabilityNote = form.dataAvailabilityStatus !== "fully_available"
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (next) setSubmitError(null)
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[85vh] max-w-[960px] overflow-y-auto">
         <form onSubmit={handleSubmit}>
@@ -447,6 +457,10 @@ export function KqFormDialog({
               />
             </div>
           </div>
+
+          {submitError && (
+            <p className="text-sm text-destructive">{submitError}</p>
+          )}
 
           <DialogFooter>
             <Button
