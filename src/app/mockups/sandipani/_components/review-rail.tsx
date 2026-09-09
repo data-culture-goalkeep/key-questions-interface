@@ -160,21 +160,15 @@ function FocusedPanel({
     ? (answerFor(data, reviewerId, viewId, elementNum)?.verdict ?? null)
     : null
 
-  // Local verdict draft — saved explicitly, independent of any comment.
-  const [draftVerdict, setDraftVerdict] = React.useState<AnswerValue | null>(
-    savedVerdict,
-  )
-
   if (!data || !card) return null
 
   const label = (card.kq || "").trim()
   const ids = kqIdsFor(label)
   const thread = elementThread(data, viewId, elementNum)
-  const verdictDirty = draftVerdict !== savedVerdict
 
-  function saveVerdict() {
-    if (!reviewerId || !verdictDirty || !draftVerdict) return
-    const verdict = draftVerdict
+  // Verdict saves the moment it's picked (no explicit Save step).
+  function pickVerdict(verdict: AnswerValue) {
+    if (!reviewerId || verdict === savedVerdict) return
     const optimistic = { id: crypto.randomUUID(), now: new Date().toISOString() }
     answerRun.run(() =>
       mutate(
@@ -422,40 +416,22 @@ function FocusedPanel({
 
       <AnswerRow
         title="Is this chart good to go?"
-        current={draftVerdict}
+        current={savedVerdict}
         disabled={answerRun.pending || !reviewerId}
-        onPick={setDraftVerdict}
+        onPick={pickVerdict}
       />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 9,
-          marginBottom: 4,
-        }}
-      >
-        <button
-          type="button"
-          onClick={saveVerdict}
-          disabled={!verdictDirty || answerRun.pending || !reviewerId}
+      {answerRun.pending && (
+        <div
           style={{
-            padding: "6px 14px",
-            borderRadius: 7,
-            border: 0,
-            background:
-              verdictDirty && !answerRun.pending ? "var(--mk-ink)" : "#d8d6d6",
-            color: "#fff",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: verdictDirty && !answerRun.pending ? "pointer" : "default",
+            fontSize: 11,
+            color: "var(--mk-sec)",
+            marginTop: -4,
+            marginBottom: 4,
           }}
         >
-          {answerRun.pending ? "Saving…" : "Save answer"}
-        </button>
-        {!verdictDirty && draftVerdict && (
-          <span style={{ fontSize: 11, color: "var(--mk-good-fg)" }}>Saved</span>
-        )}
-      </div>
+          Saving…
+        </div>
+      )}
 
       <div
         style={{

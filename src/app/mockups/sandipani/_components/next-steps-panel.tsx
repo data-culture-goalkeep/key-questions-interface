@@ -10,7 +10,7 @@ import { useMockup } from "../mockup-provider"
 import { relativeTime } from "./ui"
 
 export function NextStepsPanel() {
-  const { data, refresh } = useMockup()
+  const { data, mutate } = useMockup()
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -22,8 +22,17 @@ export function NextStepsPanel() {
     setPending(true)
     setError(null)
     try {
-      await summarizeNextSteps()
-      await refresh()
+      const result = await summarizeNextSteps()
+      if ("error" in result) {
+        setError(result.error)
+        return
+      }
+      // Fold the result into the cache through mutate() so every state update
+      // stays inside a transition.
+      await mutate(
+        (d) => ({ ...d, latestSummary: result.summary }),
+        async () => {},
+      )
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Couldn't generate the summary.",
