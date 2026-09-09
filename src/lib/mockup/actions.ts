@@ -84,6 +84,19 @@ export async function editComment(input: {
   if (error) throw error
 }
 
+/** Toggle the shared "To be incorporated" flag on a comment (any reviewer). */
+export async function setCommentIncorporate(input: {
+  commentId: string
+  value: boolean
+}): Promise<void> {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("sandipani_comments")
+    .update({ to_incorporate: input.value })
+    .eq("id", input.commentId)
+  if (error) throw error
+}
+
 // ----- reviewer management (facilitator, from the brief screen) -----
 
 export async function addReviewer(name: string): Promise<void> {

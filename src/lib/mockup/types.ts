@@ -34,6 +34,15 @@ export interface MockupComment {
   resolvedAt: string | null
   createdAt: string
   editedAt: string | null
+  /** Shared flag — collated into the "next steps" summary. */
+  toIncorporate: boolean
+}
+
+export interface MockupSummary {
+  id: string
+  content: string
+  commentCount: number
+  createdAt: string
 }
 
 /** Everything the dashboard views need, fetched once by getMockupData. */
@@ -41,6 +50,7 @@ export interface MockupData {
   reviewers: Reviewer[]
   answers: ElementAnswer[]
   comments: MockupComment[]
+  latestSummary: MockupSummary | null
 }
 
 // ----- derived view helpers -----

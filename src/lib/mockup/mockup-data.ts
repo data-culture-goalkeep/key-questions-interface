@@ -7,6 +7,7 @@ import type {
   ElementAnswer,
   MockupComment,
   MockupData,
+  MockupSummary,
   Reviewer,
 } from "./types"
 
@@ -37,6 +38,13 @@ interface CommentRow {
   resolved_at: string | null
   created_at: string
   edited_at: string | null
+  to_incorporate: boolean
+}
+interface SummaryRow {
+  id: string
+  content: string
+  comment_count: number
+  created_at: string
 }
 
 /**
@@ -48,7 +56,7 @@ interface CommentRow {
 export async function getMockupData(): Promise<MockupData> {
   const supabase = createClient()
 
-  const [reviewersRes, answersRes, commentsRes] = await Promise.all([
+  const [reviewersRes, answersRes, commentsRes, summaryRes] = await Promise.all([
     supabase
       .from("sandipani_reviewers")
       .select("id, name, review_group")
@@ -61,14 +69,20 @@ export async function getMockupData(): Promise<MockupData> {
     supabase
       .from("sandipani_comments")
       .select(
-        "id, reviewer_id, scope, view_id, element_num, parent_id, body, confidence, is_example, resolved_at, created_at, edited_at",
+        "id, reviewer_id, scope, view_id, element_num, parent_id, body, confidence, is_example, resolved_at, created_at, edited_at, to_incorporate",
       )
       .order("created_at"),
+    supabase
+      .from("sandipani_summaries")
+      .select("id, content, comment_count, created_at")
+      .order("created_at", { ascending: false })
+      .limit(1),
   ])
 
   if (reviewersRes.error) throw reviewersRes.error
   if (answersRes.error) throw answersRes.error
   if (commentsRes.error) throw commentsRes.error
+  if (summaryRes.error) throw summaryRes.error
 
   const reviewers: Reviewer[] = (reviewersRes.data as ReviewerRow[]).map((r) => ({
     id: r.id,
@@ -100,7 +114,18 @@ export async function getMockupData(): Promise<MockupData> {
     resolvedAt: c.resolved_at,
     createdAt: c.created_at,
     editedAt: c.edited_at,
+    toIncorporate: c.to_incorporate,
   }))
 
-  return { reviewers, answers, comments }
+  const summaryRow = (summaryRes.data as SummaryRow[])[0]
+  const latestSummary: MockupSummary | null = summaryRow
+    ? {
+        id: summaryRow.id,
+        content: summaryRow.content,
+        commentCount: summaryRow.comment_count,
+        createdAt: summaryRow.created_at,
+      }
+    : null
+
+  return { reviewers, answers, comments, latestSummary }
 }

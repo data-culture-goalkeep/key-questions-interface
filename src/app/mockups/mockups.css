@@ -92,3 +92,44 @@
   outline: 2px solid var(--mk-blue);
   outline-offset: 2px;
 }
+
+/* Rendered markdown (the "Next steps" summary from Claude). */
+.mockup-nav .mk-md {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--mk-ink);
+  overflow-x: auto;
+}
+.mockup-nav .mk-md table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+  margin: 4px 0;
+}
+.mockup-nav .mk-md th,
+.mockup-nav .mk-md td {
+  border: 1px solid var(--mk-border);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.mockup-nav .mk-md th {
+  background: var(--mk-canvas);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.mockup-nav .mk-md p {
+  margin: 6px 0;
+}
+.mockup-nav .mk-md ul,
+.mockup-nav .mk-md ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.mockup-nav .mk-md code {
+  font-family: var(--mk-mono);
+  background: var(--mk-border-soft);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11.5px;
+}

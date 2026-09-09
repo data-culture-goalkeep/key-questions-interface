@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { ensureReviewer } from "@/lib/mockup/actions"
+import { getMockupData } from "@/lib/mockup/mockup-data"
 import {
   AVATAR_COLORS,
   PRESET_REVIEWERS,
@@ -21,7 +22,39 @@ export default function MockupBriefPage() {
   const [selected, setSelected] = React.useState<string | null>(null)
   const [custom, setCustom] = React.useState("")
   const [busy, setBusy] = React.useState(false)
+  const [dbNames, setDbNames] = React.useState<string[] | null>(null)
 
+  const reloadNames = React.useCallback(() => {
+    getMockupData().then(
+      (data) =>
+        setDbNames(
+          [...data.reviewers.map((r) => r.name)].sort((a, b) =>
+            a.localeCompare(b),
+          ),
+        ),
+      () => setDbNames((prev) => prev),
+    )
+  }, [])
+
+  React.useEffect(() => {
+    let ignore = false
+    getMockupData().then(
+      (data) => {
+        if (ignore) return
+        setDbNames(
+          [...data.reviewers.map((r) => r.name)].sort((a, b) =>
+            a.localeCompare(b),
+          ),
+        )
+      },
+      () => {},
+    )
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  const names = dbNames ?? [...PRESET_REVIEWERS].sort((a, b) => a.localeCompare(b))
   const active = (custom.trim() || selected || name || "").trim()
 
   async function start() {
@@ -254,7 +287,7 @@ export default function MockupBriefPage() {
           </p>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {PRESET_REVIEWERS.map((m) => {
+            {names.map((m) => {
               const on = !custom.trim() && active === m
               return (
                 <button
@@ -353,7 +386,7 @@ export default function MockupBriefPage() {
           </div>
         </div>
 
-        <ManageReviewers />
+        <ManageReviewers onChange={reloadNames} />
       </div>
     </div>
   )

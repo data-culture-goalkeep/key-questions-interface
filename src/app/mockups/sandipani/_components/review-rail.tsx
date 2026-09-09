@@ -217,6 +217,7 @@ function FocusedPanel({
               resolvedAt: null,
               createdAt: optimistic.createdAt,
               editedAt: null,
+              toIncorporate: false,
             },
           ],
         }),
@@ -672,15 +673,17 @@ function AnswerRow({
       <div style={{ display: "flex", gap: 5 }}>
         {ANSWER_LABELS.map((a) => {
           const on = current === a.value
-          const activeBg =
-            a.value === "yes" ? "var(--mk-blue)" : "var(--mk-bad-bg)"
-          const activeFg = a.value === "yes" ? "#fff" : "var(--mk-bad-fg)"
-          const activeBorder =
-            a.value === "yes"
-              ? "var(--mk-blue)"
-              : a.value === "partly"
-                ? "var(--mk-coral)"
-                : "var(--mk-danger)"
+          const palette = {
+            yes: { bg: "var(--mk-blue)", fg: "#fff", border: "var(--mk-blue)" },
+            partly: { bg: "#FBF1E4", fg: "#9A6B1F", border: "#E0A63C" },
+            no: {
+              bg: "var(--mk-bad-bg)",
+              fg: "var(--mk-bad-fg)",
+              border: "var(--mk-danger)",
+            },
+          } as const
+          const { bg: activeBg, fg: activeFg, border: activeBorder } =
+            palette[a.value]
           return (
             <button
               key={a.value}

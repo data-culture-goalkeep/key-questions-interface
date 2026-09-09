@@ -53,6 +53,7 @@ export function PageFeedback({ viewId }: { viewId: string }) {
             resolvedAt: null,
             createdAt: optimistic.createdAt,
             editedAt: null,
+            toIncorporate: false,
           },
         ],
       }),

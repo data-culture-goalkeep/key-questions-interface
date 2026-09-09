@@ -25,7 +25,7 @@ function toRows(data: MockupData): Row[] {
     }))
 }
 
-export function ManageReviewers() {
+export function ManageReviewers({ onChange }: { onChange?: () => void }) {
   const [open, setOpen] = React.useState(false)
   const [rows, setRows] = React.useState<Row[] | null>(null)
   const [newName, setNewName] = React.useState("")
@@ -41,6 +41,11 @@ export function ManageReviewers() {
     }
   }, [])
 
+  const refreshAll = React.useCallback(async () => {
+    await load()
+    onChange?.()
+  }, [load, onChange])
+
   function toggle() {
     if (!open && !rows) void load()
     setOpen((o) => !o)
@@ -53,7 +58,7 @@ export function ManageReviewers() {
     try {
       await addReviewer(name)
       setNewName("")
-      await load()
+      await refreshAll()
     } catch {
       setError(`Couldn't add "${name}".`)
     } finally {
@@ -70,7 +75,7 @@ export function ManageReviewers() {
     setBusy(true)
     try {
       await deleteReviewer(row.id)
-      await load()
+      await refreshAll()
     } catch {
       setError(`Couldn't delete "${row.name}".`)
     } finally {

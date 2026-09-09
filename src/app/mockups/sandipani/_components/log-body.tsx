@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation"
 import { elementMeta } from "@/lib/mockup/build-view"
 import { REVIEWER_NAMES } from "@/lib/mockup/content/reviewers"
 import { DASHBOARD_VIEWS, viewById } from "@/lib/mockup/content/views"
-import { setThreadResolved } from "@/lib/mockup/actions"
+import { setCommentIncorporate, setThreadResolved } from "@/lib/mockup/actions"
 import type { MockupComment, MockupData } from "@/lib/mockup/types"
 
 import { overallFeedback, useMockup } from "../mockup-provider"
 import { EditableCommentBody } from "./comment-item"
+import { NextStepsPanel } from "./next-steps-panel"
 import { avatarStyle, initial, relativeTime } from "./ui"
 
 // The feedback log is comment-only. Two modes: chart-level comment threads,
@@ -247,6 +248,8 @@ export function LogBody() {
       ) : (
         <PageFeedbackLog data={data} reviewer={reviewer} viewFilter={viewFilter} />
       )}
+
+      <NextStepsPanel />
     </>
   )
 }
@@ -321,12 +324,34 @@ function CommentCard({
   comment: MockupComment
   showConfidence?: boolean
 }) {
+  const { mutate } = useMockup()
+  const [pending, setPending] = React.useState(false)
+
+  function toggleIncorporate() {
+    const value = !comment.toIncorporate
+    setPending(true)
+    mutate(
+      (d) => ({
+        ...d,
+        comments: d.comments.map((c) =>
+          c.id === comment.id ? { ...c, toIncorporate: value } : c,
+        ),
+      }),
+      () => setCommentIncorporate({ commentId: comment.id, value }),
+    ).finally(() => setPending(false))
+  }
+
   return (
     <div
       style={{
         padding: "10px 12px",
         borderRadius: 9,
-        background: "var(--mk-canvas)",
+        background: comment.toIncorporate
+          ? "var(--mk-blue-tint)"
+          : "var(--mk-canvas)",
+        border: comment.toIncorporate
+          ? "1px solid var(--mk-blue)"
+          : "1px solid transparent",
         marginLeft: comment.parentId ? 16 : 0,
       }}
     >
@@ -373,6 +398,25 @@ function CommentCard({
             confidence {comment.confidence}/5
           </span>
         )}
+        <button
+          type="button"
+          onClick={toggleIncorporate}
+          disabled={pending}
+          title="Collate this into the Next Steps summary"
+          style={{
+            padding: "3px 9px",
+            borderRadius: 12,
+            border: `1px solid ${comment.toIncorporate ? "var(--mk-blue)" : "var(--mk-border)"}`,
+            background: comment.toIncorporate ? "var(--mk-blue)" : "#fff",
+            color: comment.toIncorporate ? "#fff" : "var(--mk-sec)",
+            fontSize: 10.5,
+            fontWeight: 600,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {comment.toIncorporate ? "✓ To incorporate" : "To incorporate"}
+        </button>
       </div>
       <EditableCommentBody comment={comment} fontSize={12.5} />
     </div>
