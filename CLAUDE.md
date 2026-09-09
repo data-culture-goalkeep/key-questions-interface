@@ -8,6 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A facilitator + client web app for reviewing, refining, mapping, and prioritising a project's Key Questions (KQ) document. Two audiences: **facilitators** (Goalkeep staff, `@goalkeep.net` emails) who manage KQs and lock questions once facilitation is finalized, and **clients** (external, granted per-project access) who review, comment, verify, and vote. Facilitator vs. client role is derived purely from email domain, not a stored field — see `FACILITATOR_DOMAIN` in `src/lib/auth.ts` and `src/lib/project-data.ts`.
 
+### Two apps behind one deploy
+
+`/` is a **public app-chooser** (no auth) that picks between two independent frontends:
+- **KQ Navigator** — everything under `/projects/*`, described above, auth-gated. (This is where the project list moved to; it used to be at `/`.)
+- **Mockup Navigator** — `/mockups/*`, a **no-auth** dashboard-mockup review tool (`src/app/mockups/`), imported from a Claude Design project. Its design language is deliberately its own — a scoped stylesheet (`src/app/mockups/mockups.css`, `.mockup-nav` scope) rather than the Goalkeep brand tokens — and will be reconciled later. Data lives in the **`mockup_navigator`** Postgres schema (separate from `kq_navigator`), tables prefixed per mockup (`sandipani_*`). No RLS boundary — reads are public (anon `select`), all writes go through server actions on the service-role client (`src/lib/mockup/`). `/` and `/mockups` are exempted from the auth middleware (`PUBLIC_PATHS` + the matcher exclusion in `src/middleware.ts`). It mirrors KQ Navigator's no-refetch cache: `MockupProvider` at `src/app/mockups/sandipani/layout.tsx` runs one `getMockupData()` on mount and serves every view/screen switch from context. The design handoff (spec, data contract, the reference implementation) is vendored under `docs/mockup-navigator/`; the mockup's content data is ported to typed modules in `src/lib/mockup/content/`. Seed with `npm run seed:mockups`.
+
 ## Commands
 
 ```bash
@@ -22,7 +28,8 @@ No test framework is configured in this repo — there are no unit/integration t
 Data scripts (all use `tsx --env-file=.env.local`, so they need `.env.local` populated per `.env.example`):
 
 ```bash
-npm run seed                          # seed dummy/dev data
+npm run seed                          # seed dummy/dev data (KQ Navigator, kq_navigator schema)
+npm run seed:mockups                  # seed the Mockup Navigator (mockup_navigator schema): 12 reviewers + one example thread
 npm run grant-access                  # grant a client email access to a project
 npm run get-magic-link -- <email>     # generate a sign-in magic link via the admin API, bypassing the mailer — for scripted/browser-tool logins
 npm run import:sandipani               # one-off import script for the Sandipani project's data

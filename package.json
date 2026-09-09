@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "seed:mockups": "tsx --env-file=.env.local scripts/seed-mockups.ts",
     "grant-access": "tsx --env-file=.env.local scripts/grant-client-access.ts",
     "get-magic-link": "tsx --env-file=.env.local scripts/get-magic-link.ts",
     "import:sandipani": "tsx --env-file=.env.local scripts/import-sandipani.ts",
