@@ -27,6 +27,7 @@ function useActiveViewId(): string {
   if (pathname.startsWith(`${BASE}/guide`)) return "guide"
   if (pathname.startsWith(`${BASE}/coverage`)) return "coverage"
   if (pathname.startsWith(`${BASE}/log`)) return "log"
+  if (pathname.startsWith(`${BASE}/matrix`)) return "matrix"
   return "guide"
 }
 
@@ -34,6 +35,7 @@ function hrefForView(id: string): string {
   if (id === "guide") return `${BASE}/guide`
   if (id === "coverage") return `${BASE}/coverage`
   if (id === "log") return `${BASE}/log`
+  if (id === "matrix") return `${BASE}/matrix`
   return `${BASE}/v/${id}`
 }
 
@@ -101,7 +103,7 @@ function CollapsedRail({ onExpand }: { onExpand: () => void }) {
           color: "var(--mk-sec)",
         }}
       >
-        ‹
+        «
       </button>
       <span
         style={{

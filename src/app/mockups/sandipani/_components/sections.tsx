@@ -16,40 +16,36 @@ export function Sections({
       {sections.map((s, si) => (
         <div key={si} style={{ marginBottom: 20 }}>
           {s.title && (
+            // Superset-style panel header: title (and any helper note) sit
+            // above a full-width rule, not to the left of it.
             <div
               style={{
+                marginBottom: 12,
+                paddingBottom: 7,
+                borderBottom: "1px solid var(--mk-border)",
                 display: "flex",
-                alignItems: "center",
-                gap: 11,
-                marginBottom: 10,
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 12,
               }}
             >
               <h2
                 style={{
                   margin: 0,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: ".07em",
-                  textTransform: "uppercase",
-                  color: "var(--mk-sec)",
-                  whiteSpace: "nowrap",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--mk-ink)",
                 }}
               >
                 {s.title}
               </h2>
-              <div
-                style={{
-                  flex: 1,
-                  height: 1,
-                  background: "var(--mk-border)",
-                }}
-              />
               {s.note && (
                 <span
                   style={{
                     fontSize: 11.5,
                     color: "var(--mk-sec)",
                     textAlign: "right",
+                    flex: "none",
                   }}
                 >
                   {s.note}

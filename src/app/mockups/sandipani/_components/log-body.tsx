@@ -7,43 +7,33 @@ import { elementMeta } from "@/lib/mockup/build-view"
 import { REVIEWER_NAMES } from "@/lib/mockup/content/reviewers"
 import { viewById } from "@/lib/mockup/content/views"
 import { setThreadResolved } from "@/lib/mockup/actions"
-import {
-  needsDecision as deriveNeedsDecision,
-  type MockupComment,
-  type MockupData,
-} from "@/lib/mockup/types"
+import type { MockupComment, MockupData } from "@/lib/mockup/types"
 
-import { answerFor, overallFeedback, useMockup } from "../mockup-provider"
+import { overallFeedback, useMockup } from "../mockup-provider"
 import { avatarStyle, initial, relativeTime } from "./ui"
+
+// The feedback log is comment-only — every comment left on the mockup, grouped
+// by view and element. Structured Yes/Partly/No answers live in the response
+// matrix instead.
 
 interface LogElement {
   viewId: string
   num: string
   comments: MockupComment[]
-  answersKq: string | null
-  enablesAction: string | null
   resolved: boolean
 }
 
 export function LogBody() {
   const router = useRouter()
   const mk = useMockup()
-  const { data, reviewerId, mutate, setFocus } = mk
+  const { data, mutate, setFocus } = mk
   const [reviewer, setReviewer] = React.useState("All reviewers")
-  const [needsOnly, setNeedsOnly] = React.useState(false)
   const [showResolved, setShowResolved] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
 
   if (!data) return null
 
-  const groups = buildLogGroups(data, reviewerId, {
-    reviewer,
-    needsOnly,
-    showResolved,
-  })
+  const groups = buildLogGroups(data, { reviewer, showResolved })
   const elementCount = groups.reduce((a, g) => a + g.items.length, 0)
-
-  const safeData = data
 
   function toggleResolved(el: LogElement) {
     const next = !el.resolved
@@ -72,17 +62,6 @@ export function LogBody() {
   function open(el: LogElement) {
     setFocus(el.num)
     router.push(`/mockups/sandipani/v/${el.viewId}`)
-  }
-
-  function copyAll() {
-    const tsv = buildTsv(safeData)
-    try {
-      navigator.clipboard.writeText(tsv)
-    } catch {
-      // clipboard unavailable
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2200)
   }
 
   return (
@@ -135,18 +114,13 @@ export function LogBody() {
               outline: "none",
             }}
           >
-            {["All reviewers", ...REVIEWER_NAMES].map((o) => (
+            {["All reviewers", ...[...REVIEWER_NAMES].sort()].map((o) => (
               <option key={o} value={o}>
                 {o}
               </option>
             ))}
           </select>
         </label>
-        <Toggle
-          label="Needs decision only"
-          on={needsOnly}
-          onClick={() => setNeedsOnly((v) => !v)}
-        />
         <Toggle
           label="Include resolved"
           on={showResolved}
@@ -158,22 +132,6 @@ export function LogBody() {
             ? "1 element with feedback"
             : `${elementCount} elements with feedback`}
         </span>
-        <button
-          type="button"
-          onClick={copyAll}
-          style={{
-            padding: "5px 11px",
-            borderRadius: 7,
-            border: 0,
-            background: "var(--mk-ink)",
-            color: "#fff",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          {copied ? "Copied ✓" : "Copy for the feedback sheet"}
-        </button>
       </div>
 
       {groups.length === 0 ? (
@@ -198,36 +156,32 @@ export function LogBody() {
           <div key={g.viewId} style={{ marginBottom: 16 }}>
             <div
               style={{
+                marginBottom: 10,
+                paddingBottom: 7,
+                borderBottom: "1px solid var(--mk-border)",
                 display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 9,
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 12,
               }}
             >
               <h2
                 style={{
                   margin: 0,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: ".07em",
-                  textTransform: "uppercase",
-                  color: "var(--mk-sec)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--mk-ink)",
                 }}
               >
                 {viewById(g.viewId)?.title ?? g.viewId}
               </h2>
-              <div
-                style={{ flex: 1, height: 1, background: "var(--mk-border)" }}
-              />
               <span style={{ fontSize: 11.5, color: "var(--mk-sec)" }}>
                 {g.items.length === 1
                   ? "1 element"
                   : `${g.items.length} elements`}
               </span>
             </div>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: 9 }}
-            >
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               {g.items.map((el) => {
                 const meta = elementMeta(el.viewId, el.num)
                 return (
@@ -263,44 +217,7 @@ export function LogBody() {
                       <span style={{ fontSize: 13, fontWeight: 600 }}>
                         {meta.name}
                       </span>
-                      <span
-                        className="mk-mono"
-                        style={{
-                          fontSize: 9.5,
-                          padding: "2px 6px",
-                          borderRadius: 4,
-                          background: "var(--mk-border-soft)",
-                          color: "var(--mk-sec)",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {meta.kind}
-                      </span>
-                      {meta.kq && (
-                        <span
-                          className="mk-mono"
-                          style={{
-                            fontSize: 9.5,
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            background: "var(--mk-blue-tint)",
-                            color: "var(--mk-blue)",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {meta.kq}
-                        </span>
-                      )}
                       <div style={{ flex: 1 }} />
-                      {(el.answersKq || el.enablesAction) && (
-                        <span
-                          style={{ fontSize: 11, color: "var(--mk-sec)" }}
-                        >
-                          Answers KQ:{" "}
-                          <AnswerText v={el.answersKq} /> · Enables action:{" "}
-                          <AnswerText v={el.enablesAction} />
-                        </span>
-                      )}
                       <button
                         type="button"
                         onClick={() => toggleResolved(el)}
@@ -365,9 +282,7 @@ export function LogBody() {
                             <span style={avatarStyle(cm.reviewerName, 20)}>
                               {initial(cm.reviewerName)}
                             </span>
-                            <span
-                              style={{ fontSize: 12, fontWeight: 600 }}
-                            >
+                            <span style={{ fontSize: 12, fontWeight: 600 }}>
                               {cm.reviewerName}
                             </span>
                             <span
@@ -413,24 +328,6 @@ export function LogBody() {
   )
 }
 
-function AnswerText({ v }: { v: string | null }) {
-  return (
-    <strong
-      style={{
-        textTransform: "capitalize",
-        color:
-          v === "yes"
-            ? "var(--mk-good-fg)"
-            : v
-              ? "var(--mk-bad-fg)"
-              : "var(--mk-sec)",
-      }}
-    >
-      {v ?? "—"}
-    </strong>
-  )
-}
-
 function Toggle({
   label,
   on,
@@ -469,8 +366,7 @@ interface LogGroup {
 
 function buildLogGroups(
   data: MockupData,
-  reviewerId: string | null,
-  opts: { reviewer: string; needsOnly: boolean; showResolved: boolean },
+  opts: { reviewer: string; showResolved: boolean },
 ): LogGroup[] {
   const byKey = new Map<string, MockupComment[]>()
   for (const c of data.comments) {
@@ -489,34 +385,26 @@ function buildLogGroups(
       comments = comments.filter((c) => c.reviewerName === opts.reviewer)
     if (!comments.length) continue
 
-    const ans = answerFor(data, reviewerId, viewId, num)
-    if (opts.needsOnly && !deriveNeedsDecision(ans)) continue
-
     const resolved = all.some((c) => !c.parentId && !!c.resolvedAt)
     if (!opts.showResolved && resolved) continue
 
     const list = byView.get(viewId) ?? byView.set(viewId, []).get(viewId)!
-    list.push({
-      viewId,
-      num,
-      comments,
-      answersKq: ans?.answersKq ?? null,
-      enablesAction: ans?.enablesAction ?? null,
-      resolved,
-    })
+    list.push({ viewId, num, comments, resolved })
   }
 
-  return [...byView.keys()]
-    .sort()
-    .map((viewId) => ({
-      viewId,
-      items: byView
-        .get(viewId)!
-        .sort((a, b) =>
-          a.num.localeCompare(b.num, undefined, { numeric: true }),
-        ),
-    }))
+  return [...byView.keys()].sort().map((viewId) => ({
+    viewId,
+    items: byView
+      .get(viewId)!
+      .sort((a, b) => a.num.localeCompare(b.num, undefined, { numeric: true })),
+  }))
 }
+
+// ---------------------------------------------------------------------------
+// TODO(#31): the "Copy for the feedback sheet" button was removed; this TSV
+// builder is kept only until the follow-up issue lands. It is exported (not
+// called anywhere) so it doesn't trip no-unused-vars.
+// ---------------------------------------------------------------------------
 
 const TSV_HEADER = [
   "View",
@@ -532,7 +420,7 @@ const TSV_HEADER = [
   "Decision",
 ]
 
-function buildTsv(data: MockupData): string {
+export function buildTsv(data: MockupData): string {
   const rows: string[][] = [TSV_HEADER]
 
   const byKey = new Map<string, MockupComment[]>()

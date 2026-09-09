@@ -2,20 +2,20 @@
 // brief screen. No groups, no auth.
 
 export const PRESET_REVIEWERS = [
-  "Kanishka",
-  "Shil",
-  "Ashish",
-  "Jay",
-  "Sharmishta",
-  "Surya",
-  "Manju",
   "Ambika",
-  "Purty",
   "Anisha",
-  "Ramesh",
-  "Shashwat",
+  "Ashish",
   "Bhumika",
+  "Jay",
+  "Kanishka",
+  "Manju",
+  "Purty",
+  "Ramesh",
+  "Sharmishta",
+  "Shashwat",
+  "Shil",
   "Simran",
+  "Surya",
   "Swapneel",
 ]
 

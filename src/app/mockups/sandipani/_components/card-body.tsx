@@ -10,9 +10,17 @@ import {
   type TableCard,
 } from "@/lib/mockup/build-view"
 
-// Every data table scrolls inside this fixed height, so filtering (which can
-// drop a 10-row table to 1 row) never changes the card's size.
-const TABLE_SCROLL_HEIGHT = 300
+// A table's scroll area is sized for a fixed number of rows so filtering
+// (which can drop a 10-row table to 1 row) never changes the card's size.
+// Small always-fixed tables (e.g. Female/Male) stay compact; big ones scroll.
+const TABLE_HEADER_H = 30
+const TABLE_ROW_H = 30
+const TABLE_MAX_ROWS = 9
+
+function tableScrollHeight(card: TableCard): number {
+  const rows = Math.min(card.rowsReserve ?? card.rows.length, TABLE_MAX_ROWS)
+  return TABLE_HEADER_H + Math.max(rows, 1) * TABLE_ROW_H
+}
 
 export function CardBody({ card }: { card: MockupCard }) {
   switch (card.type) {
@@ -135,7 +143,7 @@ function DataTable({ card }: { card: TableCard }) {
       <div
         style={{
           overflow: "auto",
-          height: TABLE_SCROLL_HEIGHT,
+          height: tableScrollHeight(card),
           margin: "0 -2px",
           borderBottom: "1px solid var(--mk-border-hair)",
         }}
@@ -364,12 +372,14 @@ function BarChart({ card }: { card: BarsCard }) {
 
 function StackChart({ card }: { card: StackCard }) {
   return (
+    // Top-aligned so a 2-row stack (e.g. by gender) lines its bars up with a
+    // 3-row stack beside it (by subject / by grade).
     <div
       style={{
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
+        justifyContent: "flex-start",
       }}
     >
       <div

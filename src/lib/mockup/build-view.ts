@@ -66,6 +66,12 @@ export interface TableCard extends CardBase {
   rows: (string | number)[][]
   minWidth: string
   legend?: string
+  /**
+   * Number of rows to size the card's fixed scroll area for — the *unfiltered*
+   * count for division/district tables, so selecting a division (which drops
+   * the table to one row) doesn't change the card's height.
+   */
+  rowsReserve?: number
 }
 
 export interface BarsCard extends CardBase {
@@ -118,6 +124,11 @@ function resolveGrid(grid: string | number): string {
 class ViewBuilder {
   constructor(private f: MockupFilters) {}
 
+  // Set by rowsForDiv/rowsForDistrict just before table() is called with their
+  // result (argument evaluation runs first), so table() can record the
+  // unfiltered row count for a constant card height.
+  private _pendingReserve?: number
+
   private A = (v: number, reverse?: boolean | number) =>
     adjustRate(v, this.f, !!reverse)
   private S = (n: number) => scaleCount(n, this.f)
@@ -143,16 +154,29 @@ class ViewBuilder {
     rows: (string | number)[][],
     opts: Partial<TableCard> = {},
   ): TableCard {
+    const reserve = opts.rowsReserve ?? this._pendingReserve ?? rows.length
+    this._pendingReserve = undefined
+    // Sort by the first column (division / district / name) unless it's a
+    // curated ordered list.
+    const sorted =
+      opts.kind === "Action list"
+        ? rows
+        : [...rows].sort((a, b) =>
+            String(a[0]).localeCompare(String(b[0]), undefined, {
+              numeric: true,
+            }),
+          )
     return {
       type: "table",
       kind: "Table",
       num,
       name,
       head,
-      rows,
       kq: "",
       minWidth: "420px",
       ...opts,
+      rows: sorted,
+      rowsReserve: reserve,
     }
   }
 
@@ -166,6 +190,7 @@ class ViewBuilder {
 
   /** All 9 divisions (prefixed name + district count), or just the selected one. */
   private rowsForDiv(rows: number[][]): (string | number)[][] {
+    this._pendingReserve = DIVISIONS.length
     const i = this.divIdx()
     return i < 0
       ? rows.map((r, j) => [DIVISIONS[j].name, DIVISIONS[j].districts, ...r])
@@ -173,6 +198,7 @@ class ViewBuilder {
   }
 
   private rowsForDistrict(rows: number[][]): (string | number)[][] {
+    this._pendingReserve = DISTRICTS.length
     if (this.f.district === ALL_DISTRICTS)
       return DISTRICTS.map((d, i) => [d, ...rows[i % rows.length]])
     const idx = Math.max(0, DISTRICTS.indexOf(this.f.district as never))
@@ -271,7 +297,11 @@ class ViewBuilder {
               d.schoolLeaders,
               d.mshms,
             ]),
-            { kq: "KQ01–KQ04", minWidth: "440px" },
+            {
+              kq: "KQ01–KQ04",
+              minWidth: "440px",
+              rowsReserve: DIVISIONS.length,
+            },
           ),
           {
             type: "bars",
@@ -531,6 +561,7 @@ class ViewBuilder {
               kq: "KQ07–KQ08",
               minWidth: "560px",
               legend: "Outliers: ≥5pp vs peer average, % columns only —",
+              rowsReserve: DISTRICTS.length,
             },
           ),
         ] as MockupCard[],
@@ -783,6 +814,7 @@ class ViewBuilder {
               kq: "KQ10–KQ17",
               minWidth: "800px",
               legend: "Outliers: ≥5pp vs peer average —",
+              rowsReserve: DISTRICTS.length,
             },
           ),
         ] as MockupCard[],
@@ -975,6 +1007,7 @@ class ViewBuilder {
               kq: "KQ21",
               minWidth: "600px",
               legend: "Outliers: ≥5pp vs peer average —",
+              rowsReserve: DISTRICTS.length,
             },
           ),
         ] as MockupCard[],
@@ -1054,6 +1087,7 @@ class ViewBuilder {
               kq: "KQ22",
               minWidth: "560px",
               legend: "Outliers: ≥5pp vs peer average —",
+              rowsReserve: DISTRICTS.length,
             },
           ),
         ] as MockupCard[],
@@ -1244,6 +1278,7 @@ class ViewBuilder {
               kq: "KQ23",
               minWidth: "1180px",
               legend: "Red/green: ≥2pp worse/better than peers —",
+              rowsReserve: DISTRICTS.length,
             },
           ),
         ],

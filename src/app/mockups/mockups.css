@@ -31,8 +31,11 @@
   --mk-scenario-bg: #fffdf0;
   --mk-scenario-border: #efebbf;
 
-  --mk-font: var(--font-inter), "Inter", system-ui, sans-serif;
-  --mk-mono: var(--font-ibm-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
+  /* Superset's UI font is Inter — use it everywhere, including numeric cells
+     and element codes (Superset renders numbers in the same sans face, just
+     right-aligned with tabular figures). */
+  --mk-font: var(--font-inter), "Inter", Helvetica, Arial, sans-serif;
+  --mk-mono: var(--mk-font);
 
   font-family: var(--mk-font);
   color: var(--mk-ink);
@@ -80,6 +83,8 @@
 
 .mockup-nav .mk-mono {
   font-family: var(--mk-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 /* Focus ring for keyboard users on the clickable element cards. */

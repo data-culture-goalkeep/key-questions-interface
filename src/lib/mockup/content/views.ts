@@ -137,6 +137,17 @@ export const VIEWS: MockupView[] = [
     filters: false,
     ref: true,
   },
+  {
+    id: "matrix",
+    label: "Response matrix",
+    kind: "ref",
+    title: "Response matrix",
+    purpose:
+      "Every chart × every reviewer — whether each said it answers the key question and enables the action.",
+    kqs: [],
+    filters: false,
+    ref: true,
+  },
 ]
 
 export const DASHBOARD_VIEWS = VIEWS.filter((v) => v.kind === "view")

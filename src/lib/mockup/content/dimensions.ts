@@ -1,7 +1,9 @@
 // Filter dimensions and the divisions/districts reference data, from the
 // design handoff (dummy-data.json + reference-implementation.js `DIV`).
 
-export const ACADEMIC_YEARS = ["2025–26", "2024–25", "2023–24"] as const
+// Options are shown sorted (years ascending); the data arrays below keep their
+// own order because per-index lookups (division offsets, table rows) depend on it.
+export const ACADEMIC_YEARS = ["2023–24", "2024–25", "2025–26"] as const
 export const SUBJECTS = ["English", "Hindi", "Mathematics"] as const
 export const GRADES = ["Grade 6", "Grade 7", "Grade 8"] as const
 export const GENDERS = ["Girls", "Boys"] as const
@@ -52,9 +54,18 @@ export const DISTRICTS = [
 
 export const TOTAL_SCHOOLS = DIVISIONS.reduce((a, d) => a + d.schools, 0)
 
-export const divisionOptions = [ALL_DIVISIONS, ...DIVISIONS.map((d) => d.name)]
-export const districtOptions = [ALL_DISTRICTS, ...DISTRICTS]
-export const subjectOptions = [ALL_SUBJECTS, ...SUBJECTS]
+export const divisionOptions = [
+  ALL_DIVISIONS,
+  ...DIVISIONS.map((d) => d.name).sort((a, b) => a.localeCompare(b)),
+]
+export const districtOptions = [
+  ALL_DISTRICTS,
+  ...[...DISTRICTS].sort((a, b) => a.localeCompare(b)),
+]
+export const subjectOptions = [
+  ALL_SUBJECTS,
+  ...[...SUBJECTS].sort((a, b) => a.localeCompare(b)),
+]
 
 export function divisionIndex(division: string): number {
   return DIVISIONS.findIndex((d) => d.name === division)

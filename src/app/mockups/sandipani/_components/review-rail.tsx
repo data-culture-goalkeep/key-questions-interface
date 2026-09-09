@@ -89,7 +89,7 @@ export function ReviewRail({ viewId }: { viewId: string }) {
             flex: "none",
           }}
         >
-          ›
+          »
         </button>
         <span
           style={{
@@ -112,7 +112,12 @@ export function ReviewRail({ viewId }: { viewId: string }) {
       </div>
 
       {focus ? (
-        <FocusedPanel viewId={viewId} elementNum={focus} />
+        // Remount per element so the answer draft state seeds fresh.
+        <FocusedPanel
+          key={`${viewId}:${focus}`}
+          viewId={viewId}
+          elementNum={focus}
+        />
       ) : (
         <PagePanel viewId={viewId} />
       )}
@@ -135,6 +140,7 @@ function FocusedPanel({
   const { data, reviewerId, mutate, setFocus } = mk
   const [replyTo, setReplyTo] = React.useState<string | null>(null)
   const [draft, setDraft] = React.useState("")
+  const [kqOpen, setKqOpen] = React.useState(true)
   const answerRun = useRunAction()
   const commentRun = useRunAction()
 
@@ -144,30 +150,59 @@ function FocusedPanel({
     return null
   }, [viewId, elementNum, mk])
 
+  const savedAnswer = data
+    ? answerFor(data, reviewerId, viewId, elementNum)
+    : undefined
+
+  // Local answer draft — saved explicitly, independent of any comment.
+  const [draftKq, setDraftKq] = React.useState<AnswerValue | null>(
+    savedAnswer?.answersKq ?? null,
+  )
+  const [draftAction, setDraftAction] = React.useState<AnswerValue | null>(
+    savedAnswer?.enablesAction ?? null,
+  )
+
   if (!data || !card) return null
 
   const label = (card.kq || "").trim()
   const ids = kqIdsFor(label)
   const thread = elementThread(data, viewId, elementNum)
-  const answer = answerFor(data, reviewerId, viewId, elementNum)
 
-  function pickAnswer(field: "answersKq" | "enablesAction", value: AnswerValue) {
-    if (!reviewerId) return
-    // Precomputed outside the patch closure — useOptimistic's updater must be
-    // pure (it can run more than once for the same dispatch under Strict Mode).
+  const answersDirty =
+    draftKq !== (savedAnswer?.answersKq ?? null) ||
+    draftAction !== (savedAnswer?.enablesAction ?? null)
+
+  function saveAnswers() {
+    if (!reviewerId || !answersDirty) return
     const optimistic = { id: crypto.randomUUID(), now: new Date().toISOString() }
+    const kq = draftKq
+    const action = draftAction
     answerRun.run(() =>
       mutate(
-        (d) =>
-          patchAnswer(d, reviewerId, viewId, elementNum, field, value, optimistic),
-        () =>
-          setElementAnswer({
-            reviewerId,
-            viewId,
-            elementNum,
-            field,
-            value,
-          }),
+        (d) => {
+          let next = d
+          if (kq) next = patchAnswer(next, reviewerId, viewId, elementNum, "answersKq", kq, optimistic)
+          if (action) next = patchAnswer(next, reviewerId, viewId, elementNum, "enablesAction", action, optimistic)
+          return next
+        },
+        async () => {
+          if (kq)
+            await setElementAnswer({
+              reviewerId,
+              viewId,
+              elementNum,
+              field: "answersKq",
+              value: kq,
+            })
+          if (action)
+            await setElementAnswer({
+              reviewerId,
+              viewId,
+              elementNum,
+              field: "enablesAction",
+              value: action,
+            })
+        },
       ),
     )
   }
@@ -271,7 +306,7 @@ function FocusedPanel({
             display: "flex",
             alignItems: "center",
             gap: 6,
-            marginBottom: ids.length ? 8 : 0,
+            marginBottom: ids.length && kqOpen ? 8 : 0,
           }}
         >
           <span
@@ -297,7 +332,26 @@ function FocusedPanel({
               {label}
             </span>
           )}
+          <div style={{ flex: 1 }} />
+          <button
+            type="button"
+            onClick={() => setKqOpen((o) => !o)}
+            aria-label={kqOpen ? "Collapse key questions" : "Expand key questions"}
+            aria-expanded={kqOpen}
+            style={{
+              border: 0,
+              background: "transparent",
+              cursor: "pointer",
+              fontSize: 11,
+              lineHeight: 1,
+              color: "var(--mk-sec)",
+              padding: 2,
+            }}
+          >
+            {kqOpen ? "▾" : "▸"}
+          </button>
         </div>
+        {kqOpen && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {ids.length ? (
             ids.map((id) => (
@@ -376,20 +430,53 @@ function FocusedPanel({
             </span>
           )}
         </div>
+        )}
       </div>
 
       <AnswerRow
         title={`Does this answer ${label || "this question"}?`}
-        current={answer?.answersKq ?? null}
+        current={draftKq}
         disabled={answerRun.pending || !reviewerId}
-        onPick={(v) => pickAnswer("answersKq", v)}
+        onPick={setDraftKq}
       />
       <AnswerRow
         title="Does it enable the action?"
-        current={answer?.enablesAction ?? null}
+        current={draftAction}
         disabled={answerRun.pending || !reviewerId}
-        onPick={(v) => pickAnswer("enablesAction", v)}
+        onPick={setDraftAction}
       />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          marginBottom: 4,
+        }}
+      >
+        <button
+          type="button"
+          onClick={saveAnswers}
+          disabled={!answersDirty || answerRun.pending || !reviewerId}
+          style={{
+            padding: "6px 14px",
+            borderRadius: 7,
+            border: 0,
+            background:
+              answersDirty && !answerRun.pending
+                ? "var(--mk-ink)"
+                : "#d8d6d6",
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: answersDirty && !answerRun.pending ? "pointer" : "default",
+          }}
+        >
+          {answerRun.pending ? "Saving…" : "Save answers"}
+        </button>
+        {!answersDirty && (draftKq || draftAction) && (
+          <span style={{ fontSize: 11, color: "var(--mk-good-fg)" }}>Saved</span>
+        )}
+      </div>
 
       <div
         style={{
@@ -899,6 +986,9 @@ function RailFooter() {
     >
       <Link href="/mockups/sandipani/log" style={{ fontSize: 11.5 }}>
         Feedback log ({total}) →
+      </Link>
+      <Link href="/mockups/sandipani/matrix" style={{ fontSize: 11.5 }}>
+        Response matrix →
       </Link>
       <Link href="/mockups/sandipani/coverage" style={{ fontSize: 11.5 }}>
         Coverage check →
