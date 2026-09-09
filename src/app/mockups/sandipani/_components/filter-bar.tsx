@@ -9,7 +9,7 @@ import {
   divisionOptions,
   subjectOptions,
 } from "@/lib/mockup/content/dimensions"
-import { SCENARIOS, filtersDirty } from "@/lib/mockup/content/scenarios"
+import { filtersDirty } from "@/lib/mockup/content/scenarios"
 import { viewById } from "@/lib/mockup/content/views"
 
 import { useMockup } from "../mockup-provider"
@@ -46,9 +46,11 @@ function pill(active: boolean, accent = false): React.CSSProperties {
 export function FilterBar({ viewId }: { viewId: string }) {
   const mk = useMockup()
   const view = viewById(viewId)
-  const { filters, setFilter, resetFilters, scenarioFor, setScenario } = mk
-  const scenario = scenarioFor(viewId)
-  const dirty = filtersDirty({ ...filters, scenario })
+  const { filters, setFilter, resetFilters } = mk
+  // The "Scenario" toggle is disabled for now — too much to explain to the
+  // client mid-review. The recompute maths stays in scenarios.ts; see
+  // GitHub issue #33 about bringing it back for a future project.
+  const dirty = filtersDirty({ ...filters, scenario: "asis" })
 
   return (
     <div
@@ -124,23 +126,6 @@ export function FilterBar({ viewId }: { viewId: string }) {
           </select>
         </label>
       )}
-
-      <label style={pill(false, true)}>
-        <span style={{ color: "var(--mk-blue)" }}>Scenario</span>
-        <select
-          value={scenario}
-          onChange={(e) =>
-            setScenario(viewId, e.target.value as (typeof SCENARIOS)[number]["id"])
-          }
-          style={{ ...selectStyle, color: "var(--mk-blue)" }}
-        >
-          {SCENARIOS.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
 
       {dirty && (
         <button

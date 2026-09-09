@@ -44,7 +44,7 @@ export default function AppChooserPage() {
           priority
         />
         <h1 className="font-display text-2xl text-foreground sm:text-3xl">
-          Which app do you want to open?
+          Which experience do you want to open?
         </h1>
       </div>
 
