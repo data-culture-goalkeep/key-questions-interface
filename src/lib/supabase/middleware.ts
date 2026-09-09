@@ -3,7 +3,9 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { SUPABASE_JWKS } from "./jwks"
 
-const PUBLIC_PATHS = ["/sign-in", "/auth"]
+// `/mockups` is the auth-free Mockup Navigator app — also excluded from the
+// middleware matcher in src/middleware.ts, so this entry is defence-in-depth.
+const PUBLIC_PATHS = ["/sign-in", "/auth", "/mockups"]
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -45,9 +47,11 @@ export async function updateSession(request: NextRequest) {
   })
   const claims = data?.claims
 
-  const isPublicPath = PUBLIC_PATHS.some((p) =>
-    request.nextUrl.pathname.startsWith(p)
-  )
+  // The root path is the public app-chooser. Matched exactly — `startsWith`
+  // in PUBLIC_PATHS would make every route public.
+  const isPublicPath =
+    request.nextUrl.pathname === "/" ||
+    PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p))
 
   if (!claims && !isPublicPath) {
     const url = request.nextUrl.clone()

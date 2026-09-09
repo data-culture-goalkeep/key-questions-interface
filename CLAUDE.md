@@ -8,6 +8,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A facilitator + client web app for reviewing, refining, mapping, and prioritising a project's Key Questions (KQ) document. Two audiences: **facilitators** (Goalkeep staff, `@goalkeep.net` emails) who manage KQs and lock questions once facilitation is finalized, and **clients** (external, granted per-project access) who review, comment, verify, and vote. Facilitator vs. client role is derived purely from email domain, not a stored field — see `FACILITATOR_DOMAIN` in `src/lib/auth.ts` and `src/lib/project-data.ts`.
 
+### Two apps behind one deploy
+
+`/` is a **public app-chooser** (no auth) that picks between two independent frontends:
+- **KQ Navigator** — everything under `/projects/*`, described above, auth-gated. (This is where the project list moved to; it used to be at `/`.) The chooser card for it is **temporarily hidden** (`hidden: true` in `src/app/page.tsx`'s `APPS`, GitHub issue #32) so it doesn't distract reviewers during Mockup Navigator sessions.
+- **Mockup Navigator** — `/mockups/*`, a **no-auth** dashboard-mockup review tool (`src/app/mockups/`), imported from a Claude Design project ("Sandipani Vidyalayas Dashboard"). Its design language is deliberately its own — a scoped stylesheet (`src/app/mockups/mockups.css`, `.mockup-nav` scope; Inter everywhere, no monospace) rather than the Goalkeep brand tokens — and will be reconciled later. `/` and `/mockups` are exempted from the auth middleware (`PUBLIC_PATHS` + the matcher exclusion in `src/middleware.ts`).
+
+  **Data** lives in the **`mockup_navigator`** Postgres schema (separate from `kq_navigator`), tables prefixed per mockup (`sandipani_*`): `sandipani_reviewers` (flat list; `review_group` nullable; names picked or typed on the brief screen), `sandipani_element_answers` (one merged `verdict` per reviewer × element — "Is this chart good to go?" — the old `answers_kq`/`enables_action` columns are dead), `sandipani_comments` (element / page / overall scopes, one-level threads, `resolved_at`, `edited_at`, and a shared `to_incorporate` flag), and `sandipani_summaries` (persisted "Summarize Next Steps" output). No RLS boundary — reads are public (anon `select`), **all writes go through server actions on the service-role client** (`src/lib/mockup/actions.ts`, `src/lib/mockup/summarize.ts`). Migrations: `20260909120000` (schema), `..150000` (nullable group), `20260910120000` (verdict + edited_at), `..160000` (to_incorporate + summaries).
+
+  **Architecture** mirrors KQ Navigator's no-refetch cache: `MockupProvider` (`src/app/mockups/sandipani/mockup-provider.tsx`, mounted in `.../sandipani/layout.tsx`) runs one `getMockupData()` on mount — the single combined fetch, returning reviewers, answers, comments and the latest summary — and serves every view/tab switch from context; it also holds the client-only filter state (year/division/district/subject recompute charts purely client-side via `src/lib/mockup/build-view.ts`, a port of the design's reference implementation). Mutations use the same optimistic `mutate(patch, action)` pattern; fold slow server-action results (e.g. the summary) back in via `mutate` so state updates stay inside a transition.
+
+  **Views** (`src/lib/mockup/content/views.ts`): Guide + 8 dashboard views (`v1`..`v7`, `v6a`/`v6b`) in the top tab strip; Coverage check, Feedback log and Response matrix are `ref: true` and reachable **only from the review-rail footer**, not the tab strip. Page-level feedback renders at the **bottom of each dashboard view** (`page-feedback.tsx`), not in the rail. The feedback log is comment-only with a chart-comments / page-&-overall toggle, reviewer + view filters, and a "Next steps" panel that collates every `to_incorporate` comment (with chart/view context + verdict tally), sends it to Claude (`claude-sonnet-5`, `effort: "medium"`, via `@anthropic-ai/sdk`) and renders + persists a Markdown table. That call needs `ANTHROPIC_API_KEY` (workspace-scoped; or org-scoped + `ANTHROPIC_WORKSPACE_ID`) in the server env — set in `.env.local` and Vercel.
+
+  The design handoff (spec, data contract, reference implementation) is vendored under `docs/mockup-navigator/`; content data (KQ texts, view defs, dimensions, the 105-element inventory) is ported to typed modules in `src/lib/mockup/content/`. Seed with `npm run seed:mockups`. `TODO`: remove the dead TSV builder in `log-body.tsx` (issue #31).
+
 ## Commands
 
 ```bash
@@ -22,7 +36,8 @@ No test framework is configured in this repo — there are no unit/integration t
 Data scripts (all use `tsx --env-file=.env.local`, so they need `.env.local` populated per `.env.example`):
 
 ```bash
-npm run seed                          # seed dummy/dev data
+npm run seed                          # seed dummy/dev data (KQ Navigator, kq_navigator schema)
+npm run seed:mockups                  # seed the Mockup Navigator (mockup_navigator schema): preset reviewers + one example thread (v1 · 1.1, author "Goalkeep-Test")
 npm run grant-access                  # grant a client email access to a project
 npm run get-magic-link -- <email>     # generate a sign-in magic link via the admin API, bypassing the mailer — for scripted/browser-tool logins
 npm run import:sandipani               # one-off import script for the Sandipani project's data

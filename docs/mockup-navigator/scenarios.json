@@ -1,0 +1,26 @@
+{
+  "note": "Scenario is per view; every view opens on 'asis'. Applied as a percentage-point offset to rate metrics (counts are unaffected); metrics flagged reverse:true (e.g. 'None met', 'Below Dakshata') take the opposite sign.",
+  "scenarios": [
+    { "id": "asis", "label": "Programme as-is", "delta": 0, "banner": null },
+    {
+      "id": "hold",
+      "label": "Chain holding",
+      "delta": 11,
+      "banner": "Districts where the results chain holds: process implementation, teacher practice and learning move together in the same direction."
+    },
+    {
+      "id": "break",
+      "label": "Chain breaking",
+      "delta": -14,
+      "banner": "A struggling picture: processes are recorded as done, but teacher practice and student learning do not follow — the chain breaks between output and outcome."
+    }
+  ],
+  "divisionOffsets": {
+    "note": "Applied on top of the scenario delta when a single division is selected, so drill-down moves numbers plausibly and repeatably.",
+    "values": {
+      "Bhopal": -3, "Indore": 1, "Ujjain": 3, "Jabalpur": 5, "Gwalior": 4,
+      "Sagar": -1, "Rewa": -4, "Narmadapuram": -2, "Shahdol": 2
+    }
+  },
+  "clamp": [1, 99]
+}

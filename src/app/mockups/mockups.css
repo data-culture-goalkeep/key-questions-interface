@@ -1,0 +1,135 @@
+/*
+ * Scoped stylesheet for the Mockup Navigator (Sandipani dashboard review).
+ * Its design language is deliberately separate from the KQ Navigator brand
+ * theme in globals.css — everything is namespaced under `.mockup-nav` so the
+ * two never collide. A later pass will reconcile them.
+ *
+ * Inter + IBM Plex Mono are already loaded as CSS variables by the root
+ * layout (--font-inter, --font-ibm-plex-mono).
+ */
+
+.mockup-nav {
+  --mk-ink: #313032;
+  --mk-sec: #5b6472;
+  --mk-border: #e8e6e6;
+  --mk-border-soft: #f0efee;
+  --mk-border-hair: #f4f3f2;
+  --mk-muted: #9aa1ac;
+  --mk-blue: #17479e;
+  --mk-blue-mid: #4e72b8;
+  --mk-blue-tint: #eef1f8;
+  --mk-teal: #81c2b2;
+  --mk-coral: #ea9d93;
+  --mk-yellow: #e9e626;
+  --mk-danger: #c23934;
+  --mk-good-bg: #e7f2ee;
+  --mk-good-fg: #2f6b5b;
+  --mk-bad-bg: #fbeeec;
+  --mk-bad-fg: #b4564a;
+  --mk-canvas: #f7f6f6;
+  --mk-surface: #ffffff;
+  --mk-scenario-bg: #fffdf0;
+  --mk-scenario-border: #efebbf;
+
+  /* Superset's UI font is Inter — use it everywhere, including numeric cells
+     and element codes (Superset renders numbers in the same sans face, just
+     right-aligned with tabular figures). */
+  --mk-font: var(--font-inter), "Inter", Helvetica, Arial, sans-serif;
+  --mk-mono: var(--mk-font);
+
+  font-family: var(--mk-font);
+  color: var(--mk-ink);
+  background: var(--mk-canvas);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mockup-nav *,
+.mockup-nav *::before,
+.mockup-nav *::after {
+  box-sizing: border-box;
+}
+
+.mockup-nav a {
+  color: var(--mk-blue);
+  text-decoration: none;
+}
+.mockup-nav a:hover {
+  color: var(--mk-blue-mid);
+  text-decoration: underline;
+}
+
+.mockup-nav button {
+  font-family: inherit;
+}
+
+.mockup-nav textarea,
+.mockup-nav select,
+.mockup-nav input {
+  font-family: inherit;
+}
+
+.mockup-nav ::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.mockup-nav ::-webkit-scrollbar-thumb {
+  background: #d8d6d6;
+  border-radius: 5px;
+}
+.mockup-nav ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mockup-nav .mk-mono {
+  font-family: var(--mk-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Focus ring for keyboard users on the clickable element cards. */
+.mockup-nav [role="button"]:focus-visible {
+  outline: 2px solid var(--mk-blue);
+  outline-offset: 2px;
+}
+
+/* Rendered markdown (the "Next steps" summary from Claude). */
+.mockup-nav .mk-md {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--mk-ink);
+  overflow-x: auto;
+}
+.mockup-nav .mk-md table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+  margin: 4px 0;
+}
+.mockup-nav .mk-md th,
+.mockup-nav .mk-md td {
+  border: 1px solid var(--mk-border);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.mockup-nav .mk-md th {
+  background: var(--mk-canvas);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.mockup-nav .mk-md p {
+  margin: 6px 0;
+}
+.mockup-nav .mk-md ul,
+.mockup-nav .mk-md ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.mockup-nav .mk-md code {
+  font-family: var(--mk-mono);
+  background: var(--mk-border-soft);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11.5px;
+}
