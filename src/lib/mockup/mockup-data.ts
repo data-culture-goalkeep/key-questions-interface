@@ -20,8 +20,8 @@ interface AnswerRow {
   reviewer_id: string
   view_id: string
   element_num: string
+  verdict: AnswerValue | null
   answers_kq: AnswerValue | null
-  enables_action: AnswerValue | null
   updated_at: string
 }
 interface CommentRow {
@@ -36,6 +36,7 @@ interface CommentRow {
   is_example: boolean
   resolved_at: string | null
   created_at: string
+  edited_at: string | null
 }
 
 /**
@@ -55,12 +56,12 @@ export async function getMockupData(): Promise<MockupData> {
     supabase
       .from("sandipani_element_answers")
       .select(
-        "id, reviewer_id, view_id, element_num, answers_kq, enables_action, updated_at",
+        "id, reviewer_id, view_id, element_num, verdict, answers_kq, updated_at",
       ),
     supabase
       .from("sandipani_comments")
       .select(
-        "id, reviewer_id, scope, view_id, element_num, parent_id, body, confidence, is_example, resolved_at, created_at",
+        "id, reviewer_id, scope, view_id, element_num, parent_id, body, confidence, is_example, resolved_at, created_at, edited_at",
       )
       .order("created_at"),
   ])
@@ -81,8 +82,7 @@ export async function getMockupData(): Promise<MockupData> {
     reviewerId: a.reviewer_id,
     viewId: a.view_id,
     elementNum: a.element_num,
-    answersKq: a.answers_kq,
-    enablesAction: a.enables_action,
+    verdict: a.verdict ?? a.answers_kq,
     updatedAt: a.updated_at,
   }))
 
@@ -99,6 +99,7 @@ export async function getMockupData(): Promise<MockupData> {
     isExample: c.is_example,
     resolvedAt: c.resolved_at,
     createdAt: c.created_at,
+    editedAt: c.edited_at,
   }))
 
   return { reviewers, answers, comments }

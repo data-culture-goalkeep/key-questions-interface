@@ -143,7 +143,7 @@ export const VIEWS: MockupView[] = [
     kind: "ref",
     title: "Response matrix",
     purpose:
-      "Every chart × every reviewer — whether each said it answers the key question and enables the action.",
+      "Every chart × every reviewer — whether each said the chart is good to go.",
     kqs: [],
     filters: false,
     ref: true,

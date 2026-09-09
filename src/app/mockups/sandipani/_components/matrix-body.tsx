@@ -9,54 +9,49 @@ import type { AnswerValue } from "@/lib/mockup/types"
 
 import { useMockup } from "../mockup-provider"
 
-// Grid: one row per chart, one column per reviewer. Each cell shows the two
-// structured answers as icons — [KQ][Action].
+// Grid: one row per chart, one column per reviewer. Each cell shows that
+// reviewer's single verdict ("Is this chart good to go?") as an icon.
 
 const ELEMENTS = DASHBOARD_VIEWS.map((v) => ({
   view: v,
   elements: elementsForView(v.id, DEFAULT_FILTERS),
 }))
+const TOTAL_ELEMENTS = ELEMENTS.reduce((a, e) => a + e.elements.length, 0)
 
-function AnswerIcon({
-  value,
-  kind,
-}: {
-  value: AnswerValue | null
-  kind: "kq" | "action"
-}) {
-  const map: Record<
-    "yes" | "partly" | "no",
-    { bg: string; fg: string; sym: string }
-  > = {
-    yes: { bg: "var(--mk-good-bg)", fg: "var(--mk-good-fg)", sym: "✓" },
-    partly: { bg: "#FBF1E4", fg: "#9A6B1F", sym: "~" },
-    no: { bg: "var(--mk-bad-bg)", fg: "var(--mk-bad-fg)", sym: "✕" },
-  }
-  const label = kind === "kq" ? "Answers KQ" : "Enables action"
+const ICON: Record<
+  AnswerValue,
+  { bg: string; fg: string; sym: string; label: string }
+> = {
+  yes: { bg: "var(--mk-good-bg)", fg: "var(--mk-good-fg)", sym: "✓", label: "Good to go" },
+  partly: { bg: "#FBF1E4", fg: "#9A6B1F", sym: "~", label: "Partly" },
+  no: { bg: "var(--mk-bad-bg)", fg: "var(--mk-bad-fg)", sym: "✕", label: "Not yet" },
+}
+
+function VerdictIcon({ value }: { value: AnswerValue | null }) {
   if (!value)
     return (
       <span
-        title={`${label}: not answered`}
+        title="Not answered"
         style={{
-          width: 15,
-          height: 15,
+          width: 16,
+          height: 16,
           borderRadius: 4,
           border: "1px dashed var(--mk-border)",
           display: "inline-block",
         }}
       />
     )
-  const s = map[value]
+  const s = ICON[value]
   return (
     <span
-      title={`${label}: ${value}`}
+      title={s.label}
       style={{
-        width: 15,
-        height: 15,
+        width: 16,
+        height: 16,
         borderRadius: 4,
         background: s.bg,
         color: s.fg,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 700,
         display: "inline-flex",
         alignItems: "center",
@@ -80,17 +75,19 @@ export function MatrixBody() {
     [data],
   )
 
-  const answerAt = React.useMemo(() => {
-    const m = new Map<
-      string,
-      { answersKq: AnswerValue | null; enablesAction: AnswerValue | null }
-    >()
+  const verdictAt = React.useMemo(() => {
+    const m = new Map<string, AnswerValue | null>()
     for (const a of data?.answers ?? [])
-      m.set(`${a.reviewerId}:${a.viewId}:${a.elementNum}`, {
-        answersKq: a.answersKq,
-        enablesAction: a.enablesAction,
-      })
+      m.set(`${a.reviewerId}:${a.viewId}:${a.elementNum}`, a.verdict)
     return m
+  }, [data])
+
+  // Elements with at least one verdict from any reviewer.
+  const reviewedElements = React.useMemo(() => {
+    const seen = new Set<string>()
+    for (const a of data?.answers ?? [])
+      if (a.verdict) seen.add(`${a.viewId}:${a.elementNum}`)
+    return seen.size
   }, [data])
 
   if (!data) return null
@@ -106,33 +103,70 @@ export function MatrixBody() {
           flexWrap: "wrap",
           alignItems: "center",
           gap: 14,
-          marginBottom: 12,
-          fontSize: 11.5,
-          color: "var(--mk-sec)",
+          marginBottom: 14,
         }}
       >
-        <span>
-          Each cell: <strong>[Answers KQ] [Enables action]</strong>
-        </span>
-        <LegendChip bg="var(--mk-good-bg)" fg="var(--mk-good-fg)" sym="✓" label="Yes" />
-        <LegendChip bg="#FBF1E4" fg="#9A6B1F" sym="~" label="Partly" />
-        <LegendChip bg="var(--mk-bad-bg)" fg="var(--mk-bad-fg)" sym="✕" label="No" />
-        <span
+        <div
           style={{
-            width: 15,
-            height: 15,
-            borderRadius: 4,
-            border: "1px dashed var(--mk-border)",
-            display: "inline-block",
+            background: "var(--mk-surface)",
+            border: "1px solid var(--mk-border)",
+            borderRadius: 11,
+            padding: "12px 18px",
           }}
-        />
-        <span>not answered</span>
+        >
+          <div
+            style={{ fontSize: 11.5, color: "var(--mk-sec)", marginBottom: 4 }}
+          >
+            Elements reviewed at least once
+          </div>
+          <div
+            style={{
+              fontSize: 26,
+              fontWeight: 700,
+              letterSpacing: "-.02em",
+              lineHeight: 1,
+            }}
+          >
+            {reviewedElements}
+            <span
+              style={{ fontSize: 15, fontWeight: 500, color: "var(--mk-sec)" }}
+            >
+              {" "}
+              / {TOTAL_ELEMENTS}
+            </span>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 12,
+            fontSize: 11.5,
+            color: "var(--mk-sec)",
+          }}
+        >
+          <LegendChip {...ICON.yes} label="Good to go" />
+          <LegendChip {...ICON.partly} label="Partly" />
+          <LegendChip {...ICON.no} label="Not yet" />
+          <span
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: 4,
+              border: "1px dashed var(--mk-border)",
+              display: "inline-block",
+            }}
+          />
+          <span>not answered</span>
+        </div>
       </div>
 
       <div
         style={{
           overflow: "auto",
-          maxHeight: "calc(100vh - 230px)",
+          maxHeight: "calc(100vh - 260px)",
           border: "1px solid var(--mk-border)",
           borderRadius: 10,
           background: "var(--mk-surface)",
@@ -245,34 +279,24 @@ export function MatrixBody() {
                       </span>
                       <span style={{ fontSize: 12 }}>{el.name}</span>
                     </td>
-                    {reviewers.map((r) => {
-                      const a = answerAt.get(`${r.id}:${view.id}:${el.num}`)
-                      return (
-                        <td
-                          key={r.id}
-                          style={{
-                            padding: "6px 4px",
-                            textAlign: "center",
-                            borderBottom: "1px solid var(--mk-border-hair)",
-                            borderLeft: "1px solid var(--mk-border-hair)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              gap: 3,
-                            }}
-                          >
-                            <AnswerIcon value={a?.answersKq ?? null} kind="kq" />
-                            <AnswerIcon
-                              value={a?.enablesAction ?? null}
-                              kind="action"
-                            />
-                          </span>
-                        </td>
-                      )
-                    })}
+                    {reviewers.map((r) => (
+                      <td
+                        key={r.id}
+                        style={{
+                          padding: "6px 4px",
+                          textAlign: "center",
+                          borderBottom: "1px solid var(--mk-border-hair)",
+                          borderLeft: "1px solid var(--mk-border-hair)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <VerdictIcon
+                          value={
+                            verdictAt.get(`${r.id}:${view.id}:${el.num}`) ?? null
+                          }
+                        />
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </React.Fragment>
@@ -299,12 +323,12 @@ function LegendChip({
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
       <span
         style={{
-          width: 15,
-          height: 15,
+          width: 16,
+          height: 16,
           borderRadius: 4,
           background: bg,
           color: fg,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 700,
           display: "inline-flex",
           alignItems: "center",

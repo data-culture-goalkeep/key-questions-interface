@@ -301,9 +301,7 @@ export function answerFor(
       a.viewId === viewId &&
       a.elementNum === elementNum,
   )
-  return row
-    ? { answersKq: row.answersKq, enablesAction: row.enablesAction }
-    : undefined
+  return row ? { verdict: row.verdict } : undefined
 }
 
 export function elementThread(
@@ -355,17 +353,14 @@ export function totalComments(data: MockupData): number {
   return data.comments.length
 }
 
-/** Elements this reviewer has answered "Answers the KQ?" for. */
+/** Elements this reviewer has given a verdict on. */
 export function countReviewed(
   data: MockupData,
   reviewerId: string | null,
 ): number {
   if (!reviewerId) return 0
   return data.answers.filter(
-    (a) => a.reviewerId === reviewerId && isReviewed({
-      answersKq: a.answersKq,
-      enablesAction: a.enablesAction,
-    }),
+    (a) => a.reviewerId === reviewerId && isReviewed({ verdict: a.verdict }),
   ).length
 }
 

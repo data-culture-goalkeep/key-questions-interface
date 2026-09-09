@@ -87,7 +87,7 @@ export function CoverageBody() {
             const reviewed = data
               ? r.elements.filter(
                   (e) =>
-                    answerFor(data, reviewerId, e.viewId, e.num)?.answersKq,
+                    answerFor(data, reviewerId, e.viewId, e.num)?.verdict,
                 ).length
               : 0
             const noChart = r.elements.length === 0

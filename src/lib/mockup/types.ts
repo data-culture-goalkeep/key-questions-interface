@@ -15,8 +15,8 @@ export interface ElementAnswer {
   reviewerId: string
   viewId: string
   elementNum: string
-  answersKq: AnswerValue | null
-  enablesAction: AnswerValue | null
+  /** Single merged verdict — "Is this chart good to go?" */
+  verdict: AnswerValue | null
   updatedAt: string
 }
 
@@ -33,6 +33,7 @@ export interface MockupComment {
   isExample: boolean
   resolvedAt: string | null
   createdAt: string
+  editedAt: string | null
 }
 
 /** Everything the dashboard views need, fetched once by getMockupData. */
@@ -50,20 +51,15 @@ export function elementKey(viewId: string, elementNum: string): string {
 }
 
 export interface StructuredAnswer {
-  answersKq: AnswerValue | null
-  enablesAction: AnswerValue | null
+  verdict: AnswerValue | null
 }
 
-/** An element counts as reviewed once "Answers the KQ?" has a value. */
+/** An element counts as reviewed once it has a verdict. */
 export function isReviewed(a: StructuredAnswer | undefined): boolean {
-  return !!a?.answersKq
+  return !!a?.verdict
 }
 
-/** "Needs decision" = any structured answer that is not "yes". */
+/** "Needs decision" = a verdict that is not "yes". */
 export function needsDecision(a: StructuredAnswer | undefined): boolean {
-  if (!a) return false
-  return (
-    (!!a.answersKq && a.answersKq !== "yes") ||
-    (!!a.enablesAction && a.enablesAction !== "yes")
-  )
+  return !!a?.verdict && a.verdict !== "yes"
 }

@@ -5,6 +5,7 @@ import * as React from "react"
 import { addComment } from "@/lib/mockup/actions"
 
 import { overallFeedback, useMockup } from "../mockup-provider"
+import { EditableCommentBody } from "./comment-item"
 import { ConfidenceScale } from "./review-rail"
 import { avatarStyle, initial, relativeTime } from "./ui"
 
@@ -49,6 +50,7 @@ export function OverallFeedback() {
             isExample: false,
             resolvedAt: null,
             createdAt: optimistic.createdAt,
+            editedAt: null,
           },
         ],
       }),
@@ -217,7 +219,7 @@ export function OverallFeedback() {
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 12.5, lineHeight: 1.55 }}>{o.body}</div>
+              <EditableCommentBody comment={o} fontSize={12.5} />
             </div>
           ))}
         </div>

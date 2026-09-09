@@ -7,6 +7,7 @@ import { viewById } from "@/lib/mockup/content/views"
 
 import { useMockup } from "../mockup-provider"
 import { OverallFeedback } from "./overall-feedback"
+import { PageFeedback } from "./page-feedback"
 import { Sections } from "./sections"
 
 export function DashboardView({ viewId }: { viewId: string }) {
@@ -29,6 +30,7 @@ export function DashboardView({ viewId }: { viewId: string }) {
   return (
     <>
       <Sections sections={sections} viewId={viewId} />
+      <PageFeedback viewId={viewId} />
       {view.last && <OverallFeedback />}
     </>
   )

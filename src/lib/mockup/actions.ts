@@ -28,10 +28,8 @@ export async function setElementAnswer(input: {
   reviewerId: string
   viewId: string
   elementNum: string
-  field: "answersKq" | "enablesAction"
-  value: AnswerValue
+  verdict: AnswerValue
 }): Promise<void> {
-  const column = input.field === "answersKq" ? "answers_kq" : "enables_action"
   const supabase = createAdminClient()
   const { error } = await supabase
     .from("sandipani_element_answers")
@@ -40,7 +38,7 @@ export async function setElementAnswer(input: {
         reviewer_id: input.reviewerId,
         view_id: input.viewId,
         element_num: input.elementNum,
-        [column]: input.value,
+        verdict: input.verdict,
       },
       { onConflict: "reviewer_id,view_id,element_num" },
     )
@@ -66,6 +64,42 @@ export async function addComment(input: {
     body: input.body,
     confidence: input.confidence ?? null,
   })
+  if (error) throw error
+}
+
+/** Edit a comment's body in place, stamping edited_at (own comments only). */
+export async function editComment(input: {
+  commentId: string
+  reviewerId: string
+  body: string
+}): Promise<void> {
+  const body = input.body.trim()
+  if (!body) throw new Error("Comment cannot be empty")
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("sandipani_comments")
+    .update({ body, edited_at: new Date().toISOString() })
+    .eq("id", input.commentId)
+    .eq("reviewer_id", input.reviewerId)
+  if (error) throw error
+}
+
+// ----- reviewer management (facilitator, from the brief screen) -----
+
+export async function addReviewer(name: string): Promise<void> {
+  await ensureReviewer(name)
+}
+
+/**
+ * Delete a reviewer. Their element answers and comments cascade-delete with
+ * the row (FK `on delete cascade`), so callers should warn first.
+ */
+export async function deleteReviewer(reviewerId: string): Promise<void> {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("sandipani_reviewers")
+    .delete()
+    .eq("id", reviewerId)
   if (error) throw error
 }
 

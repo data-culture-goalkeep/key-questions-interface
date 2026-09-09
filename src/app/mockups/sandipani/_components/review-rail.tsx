@@ -14,10 +14,10 @@ import {
   countReviewed,
   elementThread,
   overallFeedback,
-  pageFeedback,
   totalComments,
   useMockup,
 } from "../mockup-provider"
+import { EditableCommentBody } from "./comment-item"
 import { avatarStyle, initial, relativeTime } from "./ui"
 
 const ANSWER_LABELS: { value: AnswerValue; label: string }[] = [
@@ -47,7 +47,7 @@ export function ReviewRail({ viewId }: { viewId: string }) {
 
   const inventory = view.kind === "view" ? elementsForView(viewId, mk.filtersForView(viewId)) : []
   const answeredCount = inventory.filter(
-    (e) => answerFor(data, reviewerId, viewId, e.num)?.answersKq,
+    (e) => answerFor(data, reviewerId, viewId, e.num)?.verdict,
   ).length
   const progress = inventory.length ? `${answeredCount}/${inventory.length}` : "—"
 
@@ -63,6 +63,32 @@ export function ReviewRail({ viewId }: { viewId: string }) {
         padding: "15px 16px 30px",
       }}
     >
+      {/* Collapse handle — centred on the rail's left edge. */}
+      <button
+        type="button"
+        onClick={mk.toggleRail}
+        aria-label="Collapse review rail"
+        title="Collapse review rail"
+        style={{
+          position: "fixed",
+          right: 320 - 12,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 24,
+          height: 40,
+          borderRadius: 6,
+          border: "1px solid var(--mk-border)",
+          background: "var(--mk-surface)",
+          cursor: "pointer",
+          fontSize: 13,
+          lineHeight: 1,
+          color: "var(--mk-sec)",
+          zIndex: 20,
+          boxShadow: "0 1px 4px rgba(0,0,0,.06)",
+        }}
+      >
+        »
+      </button>
       <div
         style={{
           display: "flex",
@@ -71,26 +97,6 @@ export function ReviewRail({ viewId }: { viewId: string }) {
           marginBottom: 13,
         }}
       >
-        <button
-          type="button"
-          onClick={mk.toggleRail}
-          aria-label="Collapse review rail"
-          title="Collapse review rail"
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: 6,
-            border: "1px solid var(--mk-border)",
-            background: "#fff",
-            cursor: "pointer",
-            fontSize: 13,
-            lineHeight: 1,
-            color: "var(--mk-sec)",
-            flex: "none",
-          }}
-        >
-          »
-        </button>
         <span
           style={{
             fontSize: 11,
@@ -150,16 +156,13 @@ function FocusedPanel({
     return null
   }, [viewId, elementNum, mk])
 
-  const savedAnswer = data
-    ? answerFor(data, reviewerId, viewId, elementNum)
-    : undefined
+  const savedVerdict = data
+    ? (answerFor(data, reviewerId, viewId, elementNum)?.verdict ?? null)
+    : null
 
-  // Local answer draft — saved explicitly, independent of any comment.
-  const [draftKq, setDraftKq] = React.useState<AnswerValue | null>(
-    savedAnswer?.answersKq ?? null,
-  )
-  const [draftAction, setDraftAction] = React.useState<AnswerValue | null>(
-    savedAnswer?.enablesAction ?? null,
+  // Local verdict draft — saved explicitly, independent of any comment.
+  const [draftVerdict, setDraftVerdict] = React.useState<AnswerValue | null>(
+    savedVerdict,
   )
 
   if (!data || !card) return null
@@ -167,42 +170,16 @@ function FocusedPanel({
   const label = (card.kq || "").trim()
   const ids = kqIdsFor(label)
   const thread = elementThread(data, viewId, elementNum)
+  const verdictDirty = draftVerdict !== savedVerdict
 
-  const answersDirty =
-    draftKq !== (savedAnswer?.answersKq ?? null) ||
-    draftAction !== (savedAnswer?.enablesAction ?? null)
-
-  function saveAnswers() {
-    if (!reviewerId || !answersDirty) return
+  function saveVerdict() {
+    if (!reviewerId || !verdictDirty || !draftVerdict) return
+    const verdict = draftVerdict
     const optimistic = { id: crypto.randomUUID(), now: new Date().toISOString() }
-    const kq = draftKq
-    const action = draftAction
     answerRun.run(() =>
       mutate(
-        (d) => {
-          let next = d
-          if (kq) next = patchAnswer(next, reviewerId, viewId, elementNum, "answersKq", kq, optimistic)
-          if (action) next = patchAnswer(next, reviewerId, viewId, elementNum, "enablesAction", action, optimistic)
-          return next
-        },
-        async () => {
-          if (kq)
-            await setElementAnswer({
-              reviewerId,
-              viewId,
-              elementNum,
-              field: "answersKq",
-              value: kq,
-            })
-          if (action)
-            await setElementAnswer({
-              reviewerId,
-              viewId,
-              elementNum,
-              field: "enablesAction",
-              value: action,
-            })
-        },
+        (d) => patchAnswer(d, reviewerId, viewId, elementNum, verdict, optimistic),
+        () => setElementAnswer({ reviewerId, viewId, elementNum, verdict }),
       ),
     )
   }
@@ -239,6 +216,7 @@ function FocusedPanel({
               isExample: false,
               resolvedAt: null,
               createdAt: optimistic.createdAt,
+              editedAt: null,
             },
           ],
         }),
@@ -259,6 +237,28 @@ function FocusedPanel({
 
   return (
     <div>
+      {/* Close sits outside the grey panel so it's clear it dismisses the
+          whole element review (info + question + thread). */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+        <button
+          type="button"
+          onClick={() => setFocus(null)}
+          style={{
+            border: 0,
+            background: "transparent",
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: "var(--mk-sec)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          Close <span style={{ fontSize: 13 }}>&times;</span>
+        </button>
+      </div>
+
       <div
         style={{
           padding: "11px 12px",
@@ -284,22 +284,6 @@ function FocusedPanel({
           <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>
             {card.name}
           </span>
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            onClick={() => setFocus(null)}
-            aria-label="Close element review"
-            style={{
-              border: 0,
-              background: "transparent",
-              fontSize: 14,
-              color: "var(--mk-muted)",
-              cursor: "pointer",
-              lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
         </div>
         <div
           style={{
@@ -352,98 +336,94 @@ function FocusedPanel({
           </button>
         </div>
         {kqOpen && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {ids.length ? (
-            ids.map((id) => (
-              <div
-                key={id}
-                style={
-                  ids.length > 1
-                    ? {
-                        padding: "8px 9px",
-                        borderRadius: 7,
-                        background: "#fff",
-                        border: "1px solid var(--mk-border)",
-                      }
-                    : undefined
-                }
-              >
-                <div style={{ display: "flex", gap: 7 }}>
-                  {ids.length > 1 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {ids.length ? (
+              ids.map((id) => (
+                <div
+                  key={id}
+                  style={
+                    ids.length > 1
+                      ? {
+                          padding: "8px 9px",
+                          borderRadius: 7,
+                          background: "#fff",
+                          border: "1px solid var(--mk-border)",
+                        }
+                      : undefined
+                  }
+                >
+                  <div style={{ display: "flex", gap: 7 }}>
+                    {ids.length > 1 && (
+                      <span
+                        className="mk-mono"
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          color: "var(--mk-blue)",
+                          flex: "none",
+                        }}
+                      >
+                        {id}
+                      </span>
+                    )}
                     <span
-                      className="mk-mono"
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 1.45,
+                        color: "var(--mk-ink)",
+                        minWidth: 0,
+                      }}
+                    >
+                      {KEY_QUESTIONS[id].question}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 8,
+                      paddingTop: 8,
+                      borderTop: "1px solid var(--mk-border)",
+                    }}
+                  >
+                    <div
                       style={{
                         fontSize: 9.5,
                         fontWeight: 700,
-                        color: "var(--mk-blue)",
-                        flex: "none",
+                        letterSpacing: ".06em",
+                        textTransform: "uppercase",
+                        color: "var(--mk-sec)",
+                        marginBottom: 5,
                       }}
                     >
-                      {id}
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      fontSize: 12,
-                      lineHeight: 1.45,
-                      color: "var(--mk-ink)",
-                      minWidth: 0,
-                    }}
-                  >
-                    {KEY_QUESTIONS[id].question}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    marginTop: 8,
-                    paddingTop: 8,
-                    borderTop: "1px solid var(--mk-border)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 9.5,
-                      fontWeight: 700,
-                      letterSpacing: ".06em",
-                      textTransform: "uppercase",
-                      color: "var(--mk-sec)",
-                      marginBottom: 5,
-                    }}
-                  >
-                    Action this should enable
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11.5,
-                      lineHeight: 1.5,
-                      color: "var(--mk-sec)",
-                    }}
-                  >
-                    {KEY_QUESTIONS[id].action}
+                      Action this should enable
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        lineHeight: 1.5,
+                        color: "var(--mk-sec)",
+                      }}
+                    >
+                      {KEY_QUESTIONS[id].action}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          ) : (
-            <span style={{ fontSize: 12, lineHeight: 1.45, color: "var(--mk-sec)" }}>
-              No key question is mapped to this element.
-            </span>
-          )}
-        </div>
+              ))
+            ) : (
+              <span
+                style={{ fontSize: 12, lineHeight: 1.45, color: "var(--mk-sec)" }}
+              >
+                No key question is mapped to this element.
+              </span>
+            )}
+          </div>
         )}
       </div>
 
       <AnswerRow
-        title={`Does this answer ${label || "this question"}?`}
-        current={draftKq}
+        title="Is this chart good to go?"
+        current={draftVerdict}
         disabled={answerRun.pending || !reviewerId}
-        onPick={setDraftKq}
-      />
-      <AnswerRow
-        title="Does it enable the action?"
-        current={draftAction}
-        disabled={answerRun.pending || !reviewerId}
-        onPick={setDraftAction}
+        onPick={setDraftVerdict}
       />
       <div
         style={{
@@ -455,25 +435,23 @@ function FocusedPanel({
       >
         <button
           type="button"
-          onClick={saveAnswers}
-          disabled={!answersDirty || answerRun.pending || !reviewerId}
+          onClick={saveVerdict}
+          disabled={!verdictDirty || answerRun.pending || !reviewerId}
           style={{
             padding: "6px 14px",
             borderRadius: 7,
             border: 0,
             background:
-              answersDirty && !answerRun.pending
-                ? "var(--mk-ink)"
-                : "#d8d6d6",
+              verdictDirty && !answerRun.pending ? "var(--mk-ink)" : "#d8d6d6",
             color: "#fff",
             fontSize: 12,
             fontWeight: 600,
-            cursor: answersDirty && !answerRun.pending ? "pointer" : "default",
+            cursor: verdictDirty && !answerRun.pending ? "pointer" : "default",
           }}
         >
-          {answerRun.pending ? "Saving…" : "Save answers"}
+          {answerRun.pending ? "Saving…" : "Save answer"}
         </button>
-        {!answersDirty && (draftKq || draftAction) && (
+        {!verdictDirty && draftVerdict && (
           <span style={{ fontSize: 11, color: "var(--mk-good-fg)" }}>Saved</span>
         )}
       </div>
@@ -577,7 +555,7 @@ function FocusedPanel({
                 </button>
               )}
             </div>
-            <div style={{ fontSize: 12, lineHeight: 1.5 }}>{cm.body}</div>
+            <EditableCommentBody comment={cm} />
           </div>
         ))}
       </div>
@@ -618,7 +596,7 @@ function FocusedPanel({
                 lineHeight: 1,
               }}
             >
-              ×
+              &times;
             </button>
           </div>
         )}
@@ -673,6 +651,7 @@ function FocusedPanel({
     </div>
   )
 }
+
 
 function AnswerRow({
   title,
@@ -733,204 +712,30 @@ function AnswerRow({
 // ---------------------------------------------------------------------------
 
 function PagePanel({ viewId }: { viewId: string }) {
-  const mk = useMockup()
-  const { data, reviewerId, mutate } = mk
   const view = viewById(viewId)
-  const [draft, setDraft] = React.useState("")
-  const [conf, setConf] = React.useState(0)
-  const { pending, run } = useRunAction()
-
-  if (!data || !view) return null
-  const entries = pageFeedback(data, viewId)
+  if (!view) return null
   const isReviewPage = view.kind === "view"
-
-  function submit() {
-    if (!reviewerId || !draft.trim()) return
-    const body = draft.trim()
-    const confidence = conf || null
-    const optimistic = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      reviewerId: reviewerId as string,
-      reviewerName: mk.reviewerName,
-    }
-    run(() =>
-      mutate(
-        (d) => ({
-          ...d,
-          comments: [
-            ...d.comments,
-            {
-              id: optimistic.id,
-              reviewerId: optimistic.reviewerId,
-              reviewerName: optimistic.reviewerName,
-              scope: "page" as const,
-              viewId,
-              elementNum: null,
-              parentId: null,
-              body,
-              confidence,
-              isExample: false,
-              resolvedAt: null,
-              createdAt: optimistic.createdAt,
-            },
-          ],
-        }),
-        () =>
-          addComment({
-            reviewerId,
-            scope: "page",
-            viewId,
-            body,
-            confidence,
-          }),
-      ),
-    )
-    setDraft("")
-    setConf(0)
-  }
-
   return (
-    <div>
-      <div
-        style={{
-          padding: "12px 13px",
-          borderRadius: 9,
-          background: "var(--mk-canvas)",
-          marginBottom: 13,
-        }}
-      >
-        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
-          {view.title}
-        </div>
-        <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "var(--mk-sec)" }}>
-          {isReviewPage
-            ? "Click any element on the left to review it against its key question. Or leave feedback on the whole view below."
-            : "This is reference material — no element-level review needed here."}
-        </div>
+    <div
+      style={{
+        padding: "12px 13px",
+        borderRadius: 9,
+        background: "var(--mk-canvas)",
+        marginBottom: 13,
+      }}
+    >
+      <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
+        {view.title}
       </div>
-
-      {isReviewPage && (
-        <div style={{ marginBottom: 13 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: ".06em",
-              textTransform: "uppercase",
-              color: "var(--mk-sec)",
-              marginBottom: 8,
-            }}
-          >
-            Page-level feedback
-          </div>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Does this view hold together? Anything missing across it?"
-            style={{
-              width: "100%",
-              minHeight: 74,
-              padding: "10px 11px",
-              border: "1px solid var(--mk-border)",
-              borderRadius: 9,
-              fontSize: 12,
-              lineHeight: 1.5,
-              color: "var(--mk-ink)",
-              resize: "vertical",
-              outline: "none",
-            }}
-          />
-          <div style={{ fontSize: 11.5, fontWeight: 600, margin: "11px 0 6px" }}>
-            Confidence in this view
-          </div>
-          <ConfidenceScale value={conf} onPick={setConf} />
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!draft.trim() || pending || !reviewerId}
-            style={{
-              marginTop: 10,
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: 0,
-              background:
-                draft.trim() && !pending ? "var(--mk-ink)" : "#d8d6d6",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: draft.trim() ? "pointer" : "default",
-            }}
-          >
-            Save page feedback
-          </button>
-        </div>
-      )}
-
-      {entries.length > 0 && (
-        <div style={{ marginBottom: 13 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: ".06em",
-              textTransform: "uppercase",
-              color: "var(--mk-sec)",
-              marginBottom: 7,
-            }}
-          >
-            On this view
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {entries.map((p) => (
-              <div
-                key={p.id}
-                style={{
-                  padding: "10px 11px",
-                  border: "1px solid var(--mk-border)",
-                  borderRadius: 9,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    marginBottom: 5,
-                  }}
-                >
-                  <span style={avatarStyle(p.reviewerName, 20)}>
-                    {initial(p.reviewerName)}
-                  </span>
-                  <span style={{ fontSize: 11.5, fontWeight: 600 }}>
-                    {p.reviewerName}
-                  </span>
-                  <span style={{ fontSize: 10, color: "var(--mk-muted)" }}>
-                    {relativeTime(p.createdAt)}
-                  </span>
-                  <div style={{ flex: 1 }} />
-                  {p.confidence && (
-                    <span
-                      className="mk-mono"
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        color: "var(--mk-blue)",
-                      }}
-                    >
-                      {p.confidence}/5
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, lineHeight: 1.5 }}>{p.body}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "var(--mk-sec)" }}>
+        {isReviewPage
+          ? "Click any element on the left to review it. Page-level feedback for the whole view is at the bottom of the page."
+          : "This is reference material — no element-level review needed here."}
+      </div>
     </div>
   )
 }
+
 
 export function ConfidenceScale({
   value,
@@ -1007,8 +812,7 @@ function patchAnswer(
   reviewerId: string,
   viewId: string,
   elementNum: string,
-  field: "answersKq" | "enablesAction",
-  value: AnswerValue,
+  verdict: AnswerValue,
   optimistic: { id: string; now: string },
 ): MockupData {
   const idx = d.answers.findIndex(
@@ -1019,15 +823,14 @@ function patchAnswer(
   )
   const answers = [...d.answers]
   if (idx >= 0) {
-    answers[idx] = { ...answers[idx], [field]: value }
+    answers[idx] = { ...answers[idx], verdict }
   } else {
     answers.push({
       id: optimistic.id,
       reviewerId,
       viewId,
       elementNum,
-      answersKq: field === "answersKq" ? value : null,
-      enablesAction: field === "enablesAction" ? value : null,
+      verdict,
       updatedAt: optimistic.now,
     })
   }

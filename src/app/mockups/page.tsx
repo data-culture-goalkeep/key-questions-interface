@@ -10,6 +10,7 @@ import {
   initial,
 } from "@/lib/mockup/content/reviewers"
 
+import { ManageReviewers } from "./manage-reviewers"
 import { useReviewerName } from "./reviewer-store"
 
 const FIRST_VIEW = "/mockups/sandipani/v/v1"
@@ -351,6 +352,8 @@ export default function MockupBriefPage() {
             </span>
           </div>
         </div>
+
+        <ManageReviewers />
       </div>
     </div>
   )

@@ -12,21 +12,26 @@ export const metadata = {
 }
 
 const APPS = [
+  // KQ Navigator is temporarily hidden so it doesn't distract reviewers
+  // during the Mockup Navigator review sessions — see GitHub issue #32.
   {
     href: "/projects",
     name: "KQ Navigator",
     description:
       "Review, refine, map, and prioritise a project's Key Questions. Sign-in required.",
+    hidden: true,
   },
   {
     href: "/mockups",
     name: "Mockup Navigator",
     description:
       "Walk through dashboard mockups and capture review feedback. No sign-in needed.",
+    hidden: false,
   },
 ] as const
 
 export default function AppChooserPage() {
+  const apps = APPS.filter((a) => !a.hidden)
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-4 py-16 sm:px-6">
       <div className="flex flex-col items-center gap-4 text-center">
@@ -44,7 +49,7 @@ export default function AppChooserPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {APPS.map((app) => (
+        {apps.map((app) => (
           <Link key={app.href} href={app.href} className="group">
             <Card className="h-full transition-colors group-hover:bg-muted/50">
               <CardHeader>

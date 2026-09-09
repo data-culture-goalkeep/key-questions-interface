@@ -82,7 +82,7 @@ function CollapsedRail({ onExpand }: { onExpand: () => void }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        paddingTop: 14,
+        justifyContent: "center",
         gap: 12,
       }}
     >
@@ -92,15 +92,20 @@ function CollapsedRail({ onExpand }: { onExpand: () => void }) {
         aria-label="Expand review rail"
         title="Expand review rail"
         style={{
-          width: 26,
-          height: 26,
-          borderRadius: 7,
+          position: "absolute",
+          left: -12,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 24,
+          height: 40,
+          borderRadius: 6,
           border: "1px solid var(--mk-border)",
-          background: "#fff",
+          background: "var(--mk-surface)",
           cursor: "pointer",
           fontSize: 13,
           lineHeight: 1,
           color: "var(--mk-sec)",
+          boxShadow: "0 1px 4px rgba(0,0,0,.06)",
         }}
       >
         «
