@@ -3,9 +3,10 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
+import { ensureReviewer } from "@/lib/mockup/actions"
 import {
   AVATAR_COLORS,
-  REVIEW_GROUPS,
+  PRESET_REVIEWERS,
   initial,
 } from "@/lib/mockup/content/reviewers"
 
@@ -16,19 +17,22 @@ const FIRST_VIEW = "/mockups/sandipani/v/v1"
 export default function MockupBriefPage() {
   const router = useRouter()
   const { name, choose } = useReviewerName()
-  const [pending, setPending] = React.useState<string | null>(null)
+  const [selected, setSelected] = React.useState<string | null>(null)
+  const [custom, setCustom] = React.useState("")
+  const [busy, setBusy] = React.useState(false)
 
-  // Already picked a reviewer in this browser → go straight to the dashboard.
-  React.useEffect(() => {
-    if (name) router.replace(FIRST_VIEW)
-  }, [name, router])
+  const active = (custom.trim() || selected || name || "").trim()
 
-  const active = pending ?? name
-
-  function start() {
-    if (!active) return
-    choose(active)
-    router.push(FIRST_VIEW)
+  async function start() {
+    if (!active || busy) return
+    setBusy(true)
+    try {
+      await ensureReviewer(active)
+      choose(active)
+      router.push(FIRST_VIEW)
+    } catch {
+      setBusy(false)
+    }
   }
 
   return (
@@ -240,88 +244,83 @@ export default function MockupBriefPage() {
           </h2>
           <p
             style={{
-              margin: "0 0 20px",
+              margin: "0 0 18px",
               fontSize: 13,
               color: "var(--mk-sec)",
             }}
           >
-            Your comments are attributed to you and saved for this review. Pick
-            your name to begin.
+            Pick your name, or type it in. Your comments are attributed to you.
           </p>
 
-          {REVIEW_GROUPS.map((g) => (
-            <div key={g.name} style={{ marginBottom: 17 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 9,
-                  marginBottom: 9,
-                }}
-              >
-                <span
-                  className="mk-mono"
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {PRESET_REVIEWERS.map((m) => {
+              const on = !custom.trim() && active === m
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setSelected(m)
+                    setCustom("")
+                  }}
                   style={{
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    color: "var(--mk-blue)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "7px 12px 7px 8px",
+                    border: `1.5px solid ${on ? "var(--mk-blue)" : "var(--mk-border)"}`,
+                    borderRadius: 22,
+                    background: on ? "var(--mk-blue-tint)" : "#fff",
+                    cursor: "pointer",
                   }}
                 >
-                  {g.name}
-                </span>
-                <span style={{ fontSize: 12, color: "var(--mk-sec)" }}>
-                  {g.views}
-                </span>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {g.members.map((m) => {
-                  const on = active === m
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setPending(m)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "7px 12px 7px 8px",
-                        border: `1.5px solid ${on ? "var(--mk-blue)" : "var(--mk-border)"}`,
-                        borderRadius: 22,
-                        background: on ? "var(--mk-blue-tint)" : "#fff",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: "50%",
-                          background: AVATAR_COLORS[m.length % 4],
-                          color: "var(--mk-ink)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 10,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {initial(m)}
-                      </span>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{m}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: AVATAR_COLORS[m.length % 4],
+                      color: "var(--mk-ink)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {initial(m)}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>{m}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <input
+            type="text"
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            onFocus={() => setSelected(null)}
+            placeholder="or type your name…"
+            style={{
+              marginTop: 14,
+              width: "100%",
+              maxWidth: 280,
+              padding: "8px 11px",
+              border: `1px solid ${custom.trim() ? "var(--mk-blue)" : "var(--mk-border)"}`,
+              borderRadius: 8,
+              fontSize: 13,
+              outline: "none",
+              background: custom.trim() ? "var(--mk-blue-tint)" : "#fff",
+            }}
+          />
 
           <div
             style={{
               display: "flex",
               alignItems: "center",
               gap: 12,
-              marginTop: 22,
+              marginTop: 20,
               paddingTop: 19,
               borderTop: "1px solid var(--mk-border-soft)",
             }}
@@ -329,24 +328,26 @@ export default function MockupBriefPage() {
             <button
               type="button"
               onClick={start}
-              disabled={!active}
+              disabled={!active || busy}
               style={{
                 padding: "9px 19px",
                 borderRadius: 8,
                 border: 0,
-                background: active ? "var(--mk-ink)" : "#d8d6d6",
+                background: active && !busy ? "var(--mk-ink)" : "#d8d6d6",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: active ? "pointer" : "default",
+                cursor: active && !busy ? "pointer" : "default",
               }}
             >
-              {active ? `Start reviewing as ${active}` : "Pick your name"}
+              {busy
+                ? "Starting…"
+                : active
+                  ? `Start reviewing as ${active}`
+                  : "Pick your name"}
             </button>
             <span style={{ fontSize: 12, color: "var(--mk-sec)" }}>
-              {active
-                ? "You can switch reviewer any time from the header."
-                : "Comments are attributed and saved for this review."}
+              You can switch reviewer any time from the header.
             </span>
           </div>
         </div>

@@ -3,6 +3,23 @@
 import { createAdminClient } from "./supabase/admin"
 import type { AnswerValue, CommentScope } from "./types"
 
+/**
+ * Make sure a reviewer row exists for `name` (preset or free-text) and return
+ * its id. Called from the brief screen before entering the dashboard.
+ */
+export async function ensureReviewer(name: string): Promise<string> {
+  const trimmed = name.trim()
+  if (!trimmed) throw new Error("Reviewer name is required")
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from("sandipani_reviewers")
+    .upsert({ name: trimmed }, { onConflict: "name" })
+    .select("id")
+    .single()
+  if (error) throw error
+  return data.id as string
+}
+
 // No auth in this app — every write runs through the service-role client
 // inside these actions. The reviewer is identified by the id looked up from
 // the seeded fixed list (chosen by name on the brief screen).

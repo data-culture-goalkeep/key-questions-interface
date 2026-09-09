@@ -10,6 +10,10 @@ import {
   type TableCard,
 } from "@/lib/mockup/build-view"
 
+// Every data table scrolls inside this fixed height, so filtering (which can
+// drop a 10-row table to 1 row) never changes the card's size.
+const TABLE_SCROLL_HEIGHT = 300
+
 export function CardBody({ card }: { card: MockupCard }) {
   switch (card.type) {
     case "scorecard":
@@ -39,7 +43,14 @@ function Scorecard({ card }: { card: ScorecardCard }) {
   const len = card.value.length
   const size = len > 6 ? 23 : len > 4 ? 26 : 29
   return (
-    <div>
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}
+    >
       <div
         style={{
           fontSize: 12,
@@ -118,8 +129,17 @@ function DataTable({ card }: { card: TableCard }) {
         ? "var(--mk-bad-fg)"
         : "var(--mk-ink)"
   return (
-    <div>
-      <div style={{ overflowX: "auto", margin: "0 -2px" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Fixed height so the card never reflows when a filter changes the
+          number of visible rows — it scrolls internally instead. */}
+      <div
+        style={{
+          overflow: "auto",
+          height: TABLE_SCROLL_HEIGHT,
+          margin: "0 -2px",
+          borderBottom: "1px solid var(--mk-border-hair)",
+        }}
+      >
         <table
           style={{
             width: "100%",
@@ -135,7 +155,7 @@ function DataTable({ card }: { card: TableCard }) {
                   key={i}
                   style={{
                     textAlign: i === 0 ? "left" : "right",
-                    padding: "0 8px 8px",
+                    padding: "6px 8px 8px",
                     fontSize: 9.5,
                     fontWeight: 600,
                     letterSpacing: ".04em",
@@ -143,6 +163,10 @@ function DataTable({ card }: { card: TableCard }) {
                     color: "var(--mk-sec)",
                     borderBottom: "1px solid var(--mk-border)",
                     whiteSpace: "nowrap",
+                    position: "sticky",
+                    top: 0,
+                    background: "var(--mk-surface)",
+                    zIndex: 1,
                   }}
                 >
                   {h.label}
@@ -223,7 +247,14 @@ function DataTable({ card }: { card: TableCard }) {
 
 function BarChart({ card }: { card: BarsCard }) {
   return (
-    <div>
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}
+    >
       <div
         style={{
           display: "flex",
@@ -333,7 +364,14 @@ function BarChart({ card }: { card: BarsCard }) {
 
 function StackChart({ card }: { card: StackCard }) {
   return (
-    <div>
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}
+    >
       <div
         style={{
           display: "flex",

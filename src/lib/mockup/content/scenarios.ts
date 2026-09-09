@@ -2,7 +2,10 @@
 // the design handoff (scenarios.json + reference-implementation.js).
 
 import {
+  ALL_DISTRICTS,
   ALL_DIVISIONS,
+  ALL_SUBJECTS,
+  DISTRICTS,
   DIVISIONS,
   TOTAL_SCHOOLS,
   divisionIndex,
@@ -54,8 +57,33 @@ function divisionOffset(division: string): number {
   return i < 0 ? 0 : DIVISIONS[i].offset
 }
 
+// Each filter dimension nudges rate metrics and rescales counts so that
+// interacting with Year, Division or District all visibly move the numbers
+// (the reference only wired up Division). Values are invented but deterministic.
+
+const YEAR_RATE_DELTA: Record<string, number> = {
+  "2025–26": 0,
+  "2024–25": -6,
+  "2023–24": -13,
+}
+const YEAR_COUNT_FACTOR: Record<string, number> = {
+  "2025–26": 1,
+  "2024–25": 0.82,
+  "2023–24": 0.6,
+}
+
+// Per-district rate offset (pp), indexed by DISTRICTS order.
+const DISTRICT_OFFSETS = [-4, 3, -1, 5, 2, -5, 4, -2, 1, -3]
+// A single district is roughly a sixth of a division's schools.
+const DISTRICT_COUNT_FACTOR = 0.17
+
+function districtOffset(district: string): number {
+  const i = DISTRICTS.indexOf(district as never)
+  return i < 0 ? 0 : DISTRICT_OFFSETS[i]
+}
+
 /**
- * Adjust a rate metric (%) for the active scenario + selected division.
+ * Adjust a rate metric (%) for the active scenario + Year / Division / District.
  * `reverse` metrics ("None met", "Below Dakshata") take the opposite sign so
  * "worse" always trends down. Result is clamped to [1, 99].
  */
@@ -65,16 +93,21 @@ export function adjustRate(
   reverse = false,
 ): number {
   const d =
-    (scenarioById(filters.scenario).delta + divisionOffset(filters.division)) *
+    (scenarioById(filters.scenario).delta +
+      divisionOffset(filters.division) +
+      districtOffset(filters.district) +
+      (YEAR_RATE_DELTA[filters.year] ?? 0)) *
     (reverse ? -1 : 1)
   return Math.max(1, Math.min(99, Math.round(value + d)))
 }
 
-/** Scale a programme-wide count to the selected division's share of schools. */
+/** Scale a programme-wide count for the selected Year / Division / District. */
 export function scaleCount(n: number, filters: MockupFilters): number {
+  let factor = YEAR_COUNT_FACTOR[filters.year] ?? 1
   const i = divisionIndex(filters.division)
-  if (i < 0) return n
-  return Math.max(1, Math.round((n * DIVISIONS[i].schools) / TOTAL_SCHOOLS))
+  if (i >= 0) factor *= DIVISIONS[i].schools / TOTAL_SCHOOLS
+  if (filters.district !== ALL_DISTRICTS) factor *= DISTRICT_COUNT_FACTOR
+  return Math.max(1, Math.round(n * factor))
 }
 
 export function formatCount(n: number): string {
@@ -83,9 +116,10 @@ export function formatCount(n: number): string {
 
 export function filtersDirty(filters: MockupFilters): boolean {
   return (
+    filters.year !== DEFAULT_FILTERS.year ||
     filters.division !== ALL_DIVISIONS ||
-    filters.district !== "All Districts" ||
-    filters.subject !== "All Subjects" ||
+    filters.district !== ALL_DISTRICTS ||
+    filters.subject !== ALL_SUBJECTS ||
     filters.scenario !== "asis"
   )
 }

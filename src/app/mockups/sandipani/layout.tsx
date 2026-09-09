@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
-import { useReviewerName } from "../reviewer-store"
+import { useHydrated, useReviewerName } from "../reviewer-store"
 import { DashboardShell } from "./_components/dashboard-shell"
 import { MockupProvider } from "./mockup-provider"
 
@@ -17,13 +17,14 @@ export default function SandipaniLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const hydrated = useHydrated()
   const { name } = useReviewerName()
 
   React.useEffect(() => {
-    if (!name) router.replace("/mockups")
-  }, [name, router])
+    if (hydrated && !name) router.replace("/mockups")
+  }, [hydrated, name, router])
 
-  if (!name) {
+  if (!hydrated || !name) {
     return (
       <div style={{ padding: "44px 24px", fontSize: 13, color: "var(--mk-sec)" }}>
         Loading…

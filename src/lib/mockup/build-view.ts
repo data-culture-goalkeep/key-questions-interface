@@ -565,7 +565,7 @@ class ViewBuilder {
       },
       {
         title: "Assessment participation",
-        grid: "1fr 1fr 1fr 1.6fr",
+        grid: "repeat(3, minmax(0, 1fr))",
         cards: [
           this.score("2.15", "Pre-test completed", A(86) + "%", { kq: "KQ06" }),
           this.score("2.16", "Post-test completed", A(74) + "%", { kq: "KQ06" }),
@@ -576,6 +576,7 @@ class ViewBuilder {
             num: "2.18",
             name: "Training quality by stakeholder type",
             kq: "KQ06",
+            full: true,
             max: 100,
             percent: true,
             legend: [

@@ -71,6 +71,26 @@ export function ReviewRail({ viewId }: { viewId: string }) {
           marginBottom: 13,
         }}
       >
+        <button
+          type="button"
+          onClick={mk.toggleRail}
+          aria-label="Collapse review rail"
+          title="Collapse review rail"
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: "1px solid var(--mk-border)",
+            background: "#fff",
+            cursor: "pointer",
+            fontSize: 13,
+            lineHeight: 1,
+            color: "var(--mk-sec)",
+            flex: "none",
+          }}
+        >
+          ›
+        </button>
         <span
           style={{
             fontSize: 11,

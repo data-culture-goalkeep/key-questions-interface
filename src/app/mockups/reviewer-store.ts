@@ -54,3 +54,19 @@ export function useReviewerName() {
 export function readReviewerName(): string | null {
   return getSnapshot()
 }
+
+const noopSubscribe = () => () => {}
+
+/**
+ * SSR-safe "has the client hydrated yet" flag — false during the server render
+ * and the hydration render, true on every render after. Lets a component defer
+ * a localStorage-dependent decision (like redirecting) until the store value
+ * is trustworthy, without a setState-in-effect.
+ */
+export function useHydrated(): boolean {
+  return React.useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  )
+}

@@ -1,7 +1,8 @@
 /**
  * Seeds the mockup_navigator schema for the Sandipani dashboard review tool:
- * the fixed list of 12 reviewers and the single example comment thread on
- * element 1.3 of view v1.
+ * the preset reviewer names and the single example comment thread on element
+ * 1.3 of view v1. Reviewers can also type their own name on the brief screen
+ * (created on the fly), so this list is just a convenience.
  *
  * Run: npm run seed:mockups
  * Idempotent — upserts reviewers by name, and only inserts the example thread
@@ -9,10 +10,7 @@
  */
 import { createClient } from "@supabase/supabase-js"
 
-import {
-  REVIEW_GROUPS,
-  reviewGroupFor,
-} from "../src/lib/mockup/content/reviewers"
+import { PRESET_REVIEWERS } from "../src/lib/mockup/content/reviewers"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -30,9 +28,7 @@ const supabase = createClient(url, serviceKey, {
 
 async function main() {
   // --- reviewers ---
-  const rows = REVIEW_GROUPS.flatMap((g) =>
-    g.members.map((name) => ({ name, review_group: reviewGroupFor(name) })),
-  )
+  const rows = PRESET_REVIEWERS.map((name) => ({ name }))
   const { error: upsertErr } = await supabase
     .from("sandipani_reviewers")
     .upsert(rows, { onConflict: "name" })

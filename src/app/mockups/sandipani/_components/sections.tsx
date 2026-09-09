@@ -62,7 +62,8 @@ export function Sections({
               display: "grid",
               gridTemplateColumns: s.grid,
               gap: 11,
-              alignItems: "start",
+              // Cards sharing a row take a common height.
+              alignItems: "stretch",
             }}
           >
             {s.cards.map((c) => (

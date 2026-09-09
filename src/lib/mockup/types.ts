@@ -7,7 +7,7 @@ export type CommentScope = "element" | "page" | "overall"
 export interface Reviewer {
   id: string
   name: string
-  reviewGroup: number
+  reviewGroup: number | null
 }
 
 export interface ElementAnswer {

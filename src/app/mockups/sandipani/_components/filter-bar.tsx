@@ -61,7 +61,7 @@ export function FilterBar({ viewId }: { viewId: string }) {
     >
       <div style={{ width: 1, height: 18, background: "var(--mk-border)" }} />
 
-      <label style={pill(false)}>
+      <label style={pill(filters.year !== "2025–26")}>
         <span style={{ color: "var(--mk-sec)" }}>Year</span>
         <select
           value={filters.year}

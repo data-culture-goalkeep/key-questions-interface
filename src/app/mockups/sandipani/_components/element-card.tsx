@@ -54,6 +54,10 @@ export function ElementCard({
         minWidth: 0,
         boxShadow: focused ? "0 0 0 3px rgba(23,71,158,.1)" : undefined,
         gridColumn: card.full ? "1 / -1" : undefined,
+        // Cards in the same grid row stretch to a shared height (the grid
+        // uses align-items: stretch); the body fills the remaining space.
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <div
@@ -132,7 +136,9 @@ export function ElementCard({
           </span>
         )}
       </div>
-      <CardBody card={card} />
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <CardBody card={card} />
+      </div>
     </div>
   )
 }

@@ -49,7 +49,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `minmax(0,1fr)${railOpen ? " 320px" : ""}`,
+          gridTemplateColumns: `minmax(0,1fr) ${railOpen ? "320px" : "44px"}`,
           alignItems: "start",
         }}
       >
@@ -58,30 +58,63 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <MockupGate>{() => <>{children}</>}</MockupGate>
         </div>
 
-        {railOpen && <ReviewRail viewId={viewId} />}
+        {railOpen ? (
+          <ReviewRail viewId={viewId} />
+        ) : (
+          <CollapsedRail onExpand={toggleRail} />
+        )}
       </div>
+    </div>
+  )
+}
 
-      {!railOpen && (
-        <button
-          type="button"
-          onClick={toggleRail}
-          style={{
-            position: "fixed",
-            right: 16,
-            bottom: 16,
-            padding: "8px 14px",
-            borderRadius: 20,
-            border: "1px solid var(--mk-border)",
-            background: "var(--mk-surface)",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 2px 10px rgba(0,0,0,.08)",
-          }}
-        >
-          Show review rail
-        </button>
-      )}
+function CollapsedRail({ onExpand }: { onExpand: () => void }) {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        top: 81,
+        height: "calc(100vh - 81px)",
+        borderLeft: "1px solid var(--mk-border)",
+        background: "var(--mk-surface)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        paddingTop: 14,
+        gap: 12,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onExpand}
+        aria-label="Expand review rail"
+        title="Expand review rail"
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 7,
+          border: "1px solid var(--mk-border)",
+          background: "#fff",
+          cursor: "pointer",
+          fontSize: 13,
+          lineHeight: 1,
+          color: "var(--mk-sec)",
+        }}
+      >
+        ‹
+      </button>
+      <span
+        style={{
+          writingMode: "vertical-rl",
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+          color: "var(--mk-sec)",
+        }}
+      >
+        Review
+      </span>
     </div>
   )
 }
@@ -90,7 +123,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
 function Header({ viewId }: { viewId: string }) {
   const router = useRouter()
-  const { data, reviewerId, reviewerName, railOpen, toggleRail } = useMockup()
+  const { data, reviewerId, reviewerName } = useMockup()
   const done = data ? countReviewed(data, reviewerId) : 0
 
   return (
@@ -152,22 +185,6 @@ function Header({ viewId }: { viewId: string }) {
         </span>
         <button
           type="button"
-          onClick={toggleRail}
-          style={{
-            padding: "5px 11px",
-            border: "1px solid var(--mk-border)",
-            borderRadius: 8,
-            background: "transparent",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {railOpen ? "Hide review rail" : "Show review rail"}
-        </button>
-        <button
-          type="button"
           onClick={() => router.push("/mockups")}
           style={{
             display: "flex",
@@ -198,7 +215,7 @@ function Header({ viewId }: { viewId: string }) {
           overflowX: "auto",
         }}
       >
-        {VIEWS.map((t) => {
+        {VIEWS.filter((t) => !t.ref).map((t) => {
           const active = t.id === viewId
           return (
             <Link
