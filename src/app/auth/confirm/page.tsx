@@ -43,7 +43,7 @@ export default function AuthConfirmPage() {
         if (error) {
           setStatus("error")
         } else {
-          router.replace("/")
+          router.replace("/projects")
         }
       })
   }, [router])

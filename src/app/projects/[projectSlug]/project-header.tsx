@@ -21,7 +21,7 @@ export function ProjectHeader() {
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-5">
-          <Link href="/" aria-label="All projects" className="shrink-0">
+          <Link href="/projects" aria-label="All projects" className="shrink-0">
             <Image
               src="/goalkeep-logo.png"
               alt="Goalkeep"

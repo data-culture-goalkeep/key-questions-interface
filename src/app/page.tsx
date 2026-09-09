@@ -1,97 +1,65 @@
 import Link from "next/link"
+import Image from "next/image"
+import { ArrowRight } from "lucide-react"
 
-import { createClient } from "@/lib/supabase/server"
-import { getCurrentUserContext } from "@/lib/auth"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default async function Home() {
-  const userContext = await getCurrentUserContext()
-  const supabase = await createClient()
+// Public app-chooser. No auth, no Supabase — this is shared Goalkeep chrome
+// that sits in front of both apps. KQ Navigator (auth-gated) lives at
+// /projects; Mockup Navigator (no auth) lives at /mockups.
+export const metadata = {
+  title: "Goalkeep — choose an app",
+}
 
-  const { data: projects, error } = await supabase
-    .from("projects")
-    .select("id, slug, name, client_name, status")
-    .order("name")
+const APPS = [
+  {
+    href: "/projects",
+    name: "KQ Navigator",
+    description:
+      "Review, refine, map, and prioritise a project's Key Questions. Sign-in required.",
+  },
+  {
+    href: "/mockups",
+    name: "Mockup Navigator",
+    description:
+      "Walk through dashboard mockups and capture review feedback. No sign-in needed.",
+  },
+] as const
 
+export default function AppChooserPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold">Key Questions Navigator</h1>
-          {userContext && (
-            <p className="text-sm text-muted-foreground">
-              Signed in as {userContext.email}{" "}
-              <Badge variant="outline" className="ml-1 align-middle">
-                {userContext.role}
-              </Badge>
-            </p>
-          )}
-        </div>
-        <form action="/sign-out" method="post">
-          <Button type="submit" variant="ghost" size="sm">
-            Sign out
-          </Button>
-        </form>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-4 py-16 sm:px-6">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <Image
+          src="/goalkeep-logo.png"
+          alt="Goalkeep"
+          width={140}
+          height={32}
+          className="h-8 w-auto"
+          priority
+        />
+        <h1 className="font-display text-2xl text-foreground sm:text-3xl">
+          Which app do you want to open?
+        </h1>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            {userContext?.role === "facilitator"
-              ? "All projects"
-              : "Your project"}
-          </h2>
-          {userContext?.role === "facilitator" && (
-            <Link href="/projects/new">
-              <Button type="button" variant="outline" size="sm">
-                New project
-              </Button>
-            </Link>
-          )}
-        </div>
-
-        {error && (
-          <p className="text-sm text-destructive">
-            Couldn&apos;t load projects: {error.message}
-          </p>
-        )}
-
-        {!error && projects?.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            {userContext?.role === "facilitator"
-              ? "No projects yet."
-              : "You don't have access to any project yet — ask your facilitator to invite you."}
-          </p>
-        )}
-
-        <div className="flex flex-col gap-2">
-          {projects?.map((p) => (
-            <Link key={p.id} href={`/projects/${p.slug}`}>
-              <Card className="transition-colors hover:bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>{p.name}</span>
-                    <Badge variant={p.status === "active" ? "secondary" : "outline"}>
-                      {p.status}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {p.client_name}
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {APPS.map((app) => (
+          <Link key={app.href} href={app.href} className="group">
+            <Card className="h-full transition-colors group-hover:bg-muted/50">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between gap-2">
+                  <span>{app.name}</span>
+                  <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {app.description}
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        <Link href="/style-guide" className="underline">
-          View style guide
-        </Link>
-      </p>
     </main>
   )
 }

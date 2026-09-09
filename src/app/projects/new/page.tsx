@@ -7,7 +7,7 @@ import { NewProjectForm } from "./new-project-form"
 export default async function NewProjectPage() {
   const userContext = await getCurrentUserContext()
   if (userContext?.role !== "facilitator") {
-    redirect("/")
+    redirect("/projects")
   }
 
   return (
