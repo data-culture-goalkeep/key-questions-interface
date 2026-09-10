@@ -187,6 +187,7 @@ export async function summarizeNextSteps(): Promise<SummarizeResult> {
         content: saved.content,
         commentCount: saved.comment_count,
         createdAt: saved.created_at,
+        rowAnnotations: {},
       },
     }
   } catch (e) {
