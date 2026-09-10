@@ -54,6 +54,7 @@ export function PageFeedback({ viewId }: { viewId: string }) {
             createdAt: optimistic.createdAt,
             editedAt: null,
             toIncorporate: false,
+            incorporatedAt: null,
           },
         ],
       }),

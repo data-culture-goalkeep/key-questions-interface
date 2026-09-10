@@ -9,7 +9,15 @@ import {
   divisionOptions,
   subjectOptions,
 } from "@/lib/mockup/content/dimensions"
-import { filtersDirty } from "@/lib/mockup/content/scenarios"
+import {
+  ALL_GRADES,
+  ALL_IMPL_LEVELS,
+  ALL_QUARTERS,
+  filtersDirty,
+  gradeOptions,
+  implLevelOptions,
+  quarterOptions,
+} from "@/lib/mockup/content/scenarios"
 import { viewById } from "@/lib/mockup/content/views"
 
 import { useMockup } from "../mockup-provider"
@@ -119,6 +127,57 @@ export function FilterBar({ viewId }: { viewId: string }) {
             style={selectStyle}
           >
             {subjectOptions.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {view?.grade && (
+        <label style={pill(filters.grade !== ALL_GRADES)}>
+          <span style={{ color: "var(--mk-sec)" }}>Grade</span>
+          <select
+            value={filters.grade}
+            onChange={(e) => setFilter({ grade: e.target.value })}
+            style={selectStyle}
+          >
+            {gradeOptions.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {view?.quarter && (
+        <label style={pill(filters.quarter !== ALL_QUARTERS)}>
+          <span style={{ color: "var(--mk-sec)" }}>Quarter</span>
+          <select
+            value={filters.quarter}
+            onChange={(e) => setFilter({ quarter: e.target.value })}
+            style={selectStyle}
+          >
+            {quarterOptions.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {view?.implLevel && (
+        <label style={pill(filters.implLevel !== ALL_IMPL_LEVELS)}>
+          <span style={{ color: "var(--mk-sec)" }}>Implementation</span>
+          <select
+            value={filters.implLevel}
+            onChange={(e) => setFilter({ implLevel: e.target.value })}
+            style={selectStyle}
+          >
+            {implLevelOptions.map((o) => (
               <option key={o} value={o}>
                 {o}
               </option>

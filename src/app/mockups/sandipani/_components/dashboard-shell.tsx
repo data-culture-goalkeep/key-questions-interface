@@ -4,8 +4,11 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
+import { totalElements } from "@/lib/mockup/build-view"
 import { scenarioById } from "@/lib/mockup/content/scenarios"
 import { VIEWS, viewById } from "@/lib/mockup/content/views"
+
+const TOTAL_ELEMENTS = totalElements()
 
 import {
   MockupGate,
@@ -187,8 +190,8 @@ function Header({ viewId }: { viewId: string }) {
           style={{ fontSize: 12, color: "var(--mk-sec)", whiteSpace: "nowrap" }}
         >
           Reviewed{" "}
-          <strong style={{ color: "var(--mk-ink)" }}>{done}</strong> of 105
-          elements
+          <strong style={{ color: "var(--mk-ink)" }}>{done}</strong> of{" "}
+          {TOTAL_ELEMENTS} elements
         </span>
         <button
           type="button"

@@ -52,6 +52,7 @@ export function OverallFeedback() {
             createdAt: optimistic.createdAt,
             editedAt: null,
             toIncorporate: false,
+            incorporatedAt: null,
           },
         ],
       }),
