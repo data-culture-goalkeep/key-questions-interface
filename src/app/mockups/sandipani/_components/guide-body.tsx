@@ -114,6 +114,11 @@ export function GuideBody() {
               programme-wide picture.
             </li>
             <li>
+              Some views carry extra filters: Subject and Grade on the Learning
+              views, Quarter on the PAP views, and Implementation Level on PAP
+              Detail.
+            </li>
+            <li>
               Use tables to identify the schools, districts or activities needing
               follow-up.
             </li>

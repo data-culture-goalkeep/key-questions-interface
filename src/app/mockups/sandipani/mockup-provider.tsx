@@ -132,11 +132,14 @@ export function MockupProvider({
   // --- UI state ---
   const [filters, setFilters] = React.useState<Omit<MockupFilters, "scenario">>(
     () => {
-      const defaults = {
+      const defaults: Omit<MockupFilters, "scenario"> = {
         year: DEFAULT_FILTERS.year,
         division: DEFAULT_FILTERS.division,
         district: DEFAULT_FILTERS.district,
         subject: DEFAULT_FILTERS.subject,
+        quarter: DEFAULT_FILTERS.quarter,
+        grade: DEFAULT_FILTERS.grade,
+        implLevel: DEFAULT_FILTERS.implLevel,
       }
       if (typeof window === "undefined") return defaults
       try {
@@ -171,6 +174,9 @@ export function MockupProvider({
       division: DEFAULT_FILTERS.division,
       district: DEFAULT_FILTERS.district,
       subject: DEFAULT_FILTERS.subject,
+      quarter: DEFAULT_FILTERS.quarter,
+      grade: DEFAULT_FILTERS.grade,
+      implLevel: DEFAULT_FILTERS.implLevel,
     })
     setScenarios((p) => ({ ...p, [viewId]: "asis" }))
   }, [])
