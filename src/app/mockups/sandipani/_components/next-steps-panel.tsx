@@ -54,7 +54,13 @@ const cellText = (s: string) => s.replace(/\*\*/g, "")
 // Annotation helpers
 // ---------------------------------------------------------------------------
 
-const EMPTY: SummaryRowAnnotation = { confirmed: false, instructions: "" }
+const EMPTY: SummaryRowAnnotation = {
+  confirmed: false,
+  instructions: "",
+  incorporatedRound: null,
+  incorporatedAt: null,
+  changeMade: "",
+}
 
 type AnnoMap = Record<string, SummaryRowAnnotation>
 
@@ -68,9 +74,18 @@ function prune(a: AnnoMap, keys: string[]): AnnoMap {
   const out: AnnoMap = {}
   for (const [k, v] of Object.entries(a)) {
     if (!set.has(k)) continue
-    if (v.confirmed || v.instructions.trim()) out[k] = v
+    if (v.confirmed || v.instructions.trim() || v.incorporatedRound != null)
+      out[k] = v
   }
   return out
+}
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -83,7 +98,9 @@ export function NextStepsPanel() {
   const [error, setError] = React.useState<string | null>(null)
 
   if (!data) return null
-  const flagged = data.comments.filter((c) => c.toIncorporate).length
+  const flagged = data.comments.filter(
+    (c) => c.toIncorporate && !c.incorporatedAt,
+  ).length
   const summary = data.latestSummary
 
   async function run() {
@@ -134,9 +151,10 @@ export function NextStepsPanel() {
             Next steps
           </h2>
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--mk-sec)" }}>
-            Collates every comment marked{" "}
-            <strong>&ldquo;To be incorporated&rdquo;</strong> ({flagged} so far)
-            and asks Claude for a change list.
+            Collates every <strong>pending</strong> comment marked{" "}
+            <strong>&ldquo;To be incorporated&rdquo;</strong> ({flagged} pending)
+            and asks Claude for a change list. Rows lock once their change
+            ships.
           </p>
         </div>
         <div style={{ flex: 1 }} />
@@ -252,6 +270,28 @@ function SummaryTable({ summary }: { summary: MockupSummary }) {
   const dirty =
     JSON.stringify(next) !== JSON.stringify(prune(summary.rowAnnotations, keys))
 
+  // Sort: by incorporation round (unincorporated last), then area of enquiry,
+  // then original row number. Round + timestamp come from the saved
+  // annotations, not local edits, so the order is stable while the team types.
+  const areaIdx = Math.max(
+    0,
+    parsed.headers.findIndex((h) => /area/i.test(h)),
+  )
+  const roundOf = (k: string) =>
+    summary.rowAnnotations[k]?.incorporatedRound ?? Infinity
+  const sortedRows = [...parsed.rows].sort((a, b) => {
+    const ra = roundOf(a.key)
+    const rb = roundOf(b.key)
+    if (ra !== rb) return ra - rb
+    const ca = cellText(a.cells[areaIdx] ?? "")
+    const cb = cellText(b.cells[areaIdx] ?? "")
+    const byArea = ca.localeCompare(cb, undefined, { numeric: true })
+    if (byArea) return byArea
+    return Number(a.key) - Number(b.key)
+  })
+
+  const colCount = parsed.headers.length + 3
+
   async function save() {
     setSaving(true)
     setSaveErr(null)
@@ -297,59 +337,129 @@ function SummaryTable({ summary }: { summary: MockupSummary }) {
               ))}
               <th style={{ ...th, textAlign: "center" }}>Confirm</th>
               <th style={th}>Instructions</th>
+              <th style={th}>Change made</th>
             </tr>
           </thead>
           <tbody>
-            {parsed.rows.map((row) => {
+            {sortedRows.map((row, idx) => {
               const a = get(row.key)
+              const saved = summary.rowAnnotations[row.key]
+              const round = saved?.incorporatedRound ?? null
+              const locked = round != null
+              const prevRound =
+                idx === 0
+                  ? undefined
+                  : (summary.rowAnnotations[sortedRows[idx - 1].key]
+                      ?.incorporatedRound ?? null)
+              const showHeader = idx === 0 || round !== prevRound
               return (
-                <tr
-                  key={row.key}
-                  style={{
-                    background: a.confirmed
-                      ? "var(--mk-blue-tint)"
-                      : "transparent",
-                  }}
-                >
-                  {parsed.headers.map((_, i) => (
-                    <td key={i} style={td}>
-                      {cellText(row.cells[i] ?? "")}
+                <React.Fragment key={row.key}>
+                  {showHeader && (
+                    <tr>
+                      <td
+                        colSpan={colCount}
+                        style={{
+                          padding: "10px 10px 5px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: ".04em",
+                          textTransform: "uppercase",
+                          color: locked ? "var(--mk-blue)" : "var(--mk-sec)",
+                          borderBottom: "1px solid var(--mk-border)",
+                        }}
+                      >
+                        {locked && saved?.incorporatedAt
+                          ? `Round ${round} · incorporated ${fmtDate(saved.incorporatedAt)}`
+                          : "Not yet incorporated"}
+                      </td>
+                    </tr>
+                  )}
+                  <tr
+                    style={{
+                      background:
+                        locked || a.confirmed
+                          ? "var(--mk-blue-tint)"
+                          : "transparent",
+                      opacity: locked ? 0.75 : 1,
+                    }}
+                  >
+                    {parsed.headers.map((_, i) => (
+                      <td key={i} style={td}>
+                        {cellText(row.cells[i] ?? "")}
+                      </td>
+                    ))}
+                    <td style={{ ...td, textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        checked={locked ? true : a.confirmed}
+                        disabled={locked}
+                        onChange={(e) =>
+                          patch(row.key, { confirmed: e.target.checked })
+                        }
+                        style={{
+                          width: 15,
+                          height: 15,
+                          cursor: locked ? "default" : "pointer",
+                        }}
+                        aria-label={`Confirm row ${row.key}`}
+                      />
                     </td>
-                  ))}
-                  <td style={{ ...td, textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={a.confirmed}
-                      onChange={(e) =>
-                        patch(row.key, { confirmed: e.target.checked })
-                      }
-                      style={{ width: 15, height: 15, cursor: "pointer" }}
-                      aria-label={`Confirm row ${row.key}`}
-                    />
-                  </td>
-                  <td style={td}>
-                    <textarea
-                      value={a.instructions}
-                      onChange={(e) =>
-                        patch(row.key, { instructions: e.target.value })
-                      }
-                      rows={2}
-                      placeholder="Add instructions…"
-                      style={{
-                        width: 220,
-                        minHeight: 40,
-                        resize: "vertical",
-                        border: "1px solid var(--mk-border)",
-                        borderRadius: 6,
-                        padding: "5px 7px",
-                        fontSize: 12,
-                        fontFamily: "inherit",
-                        color: "var(--mk-ink)",
-                        background: "#fff",
-                      }}
-                    />
-                  </td>
-                </tr>
+                    <td style={td}>
+                      {locked ? (
+                        <span
+                          style={{
+                            color: "var(--mk-sec)",
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {a.instructions || "—"}
+                        </span>
+                      ) : (
+                        <textarea
+                          value={a.instructions}
+                          onChange={(e) =>
+                            patch(row.key, { instructions: e.target.value })
+                          }
+                          rows={2}
+                          placeholder="Add instructions…"
+                          style={{
+                            width: 220,
+                            minHeight: 40,
+                            resize: "vertical",
+                            border: "1px solid var(--mk-border)",
+                            borderRadius: 6,
+                            padding: "5px 7px",
+                            fontSize: 12,
+                            fontFamily: "inherit",
+                            color: "var(--mk-ink)",
+                            background: "#fff",
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td style={{ ...td, minWidth: 200 }}>
+                      {locked ? (
+                        <div>
+                          <div>{saved?.changeMade || "—"}</div>
+                          {saved?.incorporatedAt && (
+                            <div
+                              style={{
+                                marginTop: 3,
+                                fontSize: 10.5,
+                                color: "var(--mk-muted)",
+                              }}
+                              title={saved.incorporatedAt}
+                            >
+                              {fmtDate(saved.incorporatedAt)}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--mk-muted)" }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                </React.Fragment>
               )
             })}
           </tbody>

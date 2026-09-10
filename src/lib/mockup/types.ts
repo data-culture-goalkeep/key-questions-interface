@@ -36,12 +36,28 @@ export interface MockupComment {
   editedAt: string | null
   /** Shared flag — collated into the "next steps" summary. */
   toIncorporate: boolean
+  /**
+   * Production-deploy timestamp of the round that shipped the change this
+   * comment fed. `toIncorporate && !incorporatedAt` == still pending.
+   */
+  incorporatedAt: string | null
 }
 
 /** Per-row data entry the team adds to a generated next-steps table. */
 export interface SummaryRowAnnotation {
   confirmed: boolean
   instructions: string
+  /** Set once the row's change ships. 1-based; null while pending. */
+  incorporatedRound: number | null
+  /** Production-deploy timestamp for that round. */
+  incorporatedAt: string | null
+  /** One-line record of what was actually changed. */
+  changeMade: string
+}
+
+/** True once a row's change has shipped (Confirm/Instructions then lock). */
+export function isRowIncorporated(a: SummaryRowAnnotation | undefined): boolean {
+  return !!a && a.incorporatedRound != null
 }
 
 export interface MockupSummary {
@@ -72,6 +88,11 @@ export function normalizeRowAnnotations(
     out[key] = {
       confirmed: v.confirmed === true,
       instructions: typeof v.instructions === "string" ? v.instructions : "",
+      incorporatedRound:
+        typeof v.incorporatedRound === "number" ? v.incorporatedRound : null,
+      incorporatedAt:
+        typeof v.incorporatedAt === "string" ? v.incorporatedAt : null,
+      changeMade: typeof v.changeMade === "string" ? v.changeMade : "",
     }
   }
   return out

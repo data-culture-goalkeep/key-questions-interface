@@ -326,8 +326,10 @@ function CommentCard({
 }) {
   const { mutate } = useMockup()
   const [pending, setPending] = React.useState(false)
+  const incorporated = !!comment.incorporatedAt
 
   function toggleIncorporate() {
+    if (incorporated) return
     const value = !comment.toIncorporate
     setPending(true)
     mutate(
@@ -346,12 +348,14 @@ function CommentCard({
       style={{
         padding: "10px 12px",
         borderRadius: 9,
-        background: comment.toIncorporate
-          ? "var(--mk-blue-tint)"
-          : "var(--mk-canvas)",
-        border: comment.toIncorporate
-          ? "1px solid var(--mk-blue)"
-          : "1px solid transparent",
+        background:
+          comment.toIncorporate && !incorporated
+            ? "var(--mk-blue-tint)"
+            : "var(--mk-canvas)",
+        border:
+          comment.toIncorporate && !incorporated
+            ? "1px solid var(--mk-blue)"
+            : "1px solid transparent",
         marginLeft: comment.parentId ? 16 : 0,
       }}
     >
@@ -398,25 +402,47 @@ function CommentCard({
             confidence {comment.confidence}/5
           </span>
         )}
-        <button
-          type="button"
-          onClick={toggleIncorporate}
-          disabled={pending}
-          title="Collate this into the Next Steps summary"
-          style={{
-            padding: "3px 9px",
-            borderRadius: 12,
-            border: `1px solid ${comment.toIncorporate ? "var(--mk-blue)" : "var(--mk-border)"}`,
-            background: comment.toIncorporate ? "var(--mk-blue)" : "#fff",
-            color: comment.toIncorporate ? "#fff" : "var(--mk-sec)",
-            fontSize: 10.5,
-            fontWeight: 600,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {comment.toIncorporate ? "✓ To incorporate" : "To incorporate"}
-        </button>
+        {incorporated ? (
+          <span
+            title={`Incorporated ${comment.incorporatedAt}`}
+            style={{
+              padding: "3px 9px",
+              borderRadius: 12,
+              border: "1px solid var(--mk-border)",
+              background: "var(--mk-canvas)",
+              color: "var(--mk-sec)",
+              fontSize: 10.5,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
+          >
+            ✓ Incorporated{" "}
+            {new Date(comment.incorporatedAt as string).toLocaleDateString(
+              "en-GB",
+              { day: "numeric", month: "short", year: "numeric" },
+            )}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={toggleIncorporate}
+            disabled={pending}
+            title="Collate this into the Next Steps summary"
+            style={{
+              padding: "3px 9px",
+              borderRadius: 12,
+              border: `1px solid ${comment.toIncorporate ? "var(--mk-blue)" : "var(--mk-border)"}`,
+              background: comment.toIncorporate ? "var(--mk-blue)" : "#fff",
+              color: comment.toIncorporate ? "#fff" : "var(--mk-sec)",
+              fontSize: 10.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {comment.toIncorporate ? "✓ To incorporate" : "To incorporate"}
+          </button>
+        )}
       </div>
       <EditableCommentBody comment={comment} fontSize={12.5} />
     </div>
