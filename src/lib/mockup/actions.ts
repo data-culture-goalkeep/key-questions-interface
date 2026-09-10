@@ -1,7 +1,8 @@
 "use server"
 
 import { createAdminClient } from "./supabase/admin"
-import type { AnswerValue, CommentScope } from "./types"
+import { normalizeRowAnnotations } from "./types"
+import type { AnswerValue, CommentScope, SummaryRowAnnotation } from "./types"
 
 /**
  * Make sure a reviewer row exists for `name` (preset or free-text) and return
@@ -95,6 +96,24 @@ export async function setCommentIncorporate(input: {
     .update({ to_incorporate: input.value })
     .eq("id", input.commentId)
   if (error) throw error
+}
+
+/**
+ * Persist the per-row "Confirm" / "Instructions" data entry on a generated
+ * next-steps table. Shared (any reviewer), keyed by the table's "#" column.
+ * Returns a discriminated result so the panel can show a readable message.
+ */
+export async function saveSummaryAnnotations(input: {
+  summaryId: string
+  annotations: Record<string, SummaryRowAnnotation>
+}): Promise<{ ok: true } | { error: string }> {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("sandipani_summaries")
+    .update({ row_annotations: normalizeRowAnnotations(input.annotations) })
+    .eq("id", input.summaryId)
+  if (error) return { error: error.message }
+  return { ok: true }
 }
 
 // ----- reviewer management (facilitator, from the brief screen) -----

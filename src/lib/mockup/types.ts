@@ -38,11 +38,19 @@ export interface MockupComment {
   toIncorporate: boolean
 }
 
+/** Per-row data entry the team adds to a generated next-steps table. */
+export interface SummaryRowAnnotation {
+  confirmed: boolean
+  instructions: string
+}
+
 export interface MockupSummary {
   id: string
   content: string
   commentCount: number
   createdAt: string
+  /** Keyed by the table's "#" column (falls back to 1-based row position). */
+  rowAnnotations: Record<string, SummaryRowAnnotation>
 }
 
 /** Everything the dashboard views need, fetched once by getMockupData. */
@@ -51,6 +59,22 @@ export interface MockupData {
   answers: ElementAnswer[]
   comments: MockupComment[]
   latestSummary: MockupSummary | null
+}
+
+/** Coerce a raw `row_annotations` jsonb value into a well-formed map. */
+export function normalizeRowAnnotations(
+  raw: unknown,
+): Record<string, SummaryRowAnnotation> {
+  const out: Record<string, SummaryRowAnnotation> = {}
+  if (!raw || typeof raw !== "object") return out
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const v = (value ?? {}) as Record<string, unknown>
+    out[key] = {
+      confirmed: v.confirmed === true,
+      instructions: typeof v.instructions === "string" ? v.instructions : "",
+    }
+  }
+  return out
 }
 
 // ----- derived view helpers -----

@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "./supabase/server"
+import { normalizeRowAnnotations } from "./types"
 import type {
   AnswerValue,
   CommentScope,
@@ -45,6 +46,7 @@ interface SummaryRow {
   content: string
   comment_count: number
   created_at: string
+  row_annotations: unknown
 }
 
 /**
@@ -74,7 +76,7 @@ export async function getMockupData(): Promise<MockupData> {
       .order("created_at"),
     supabase
       .from("sandipani_summaries")
-      .select("id, content, comment_count, created_at")
+      .select("id, content, comment_count, created_at, row_annotations")
       .order("created_at", { ascending: false })
       .limit(1),
   ])
@@ -124,6 +126,7 @@ export async function getMockupData(): Promise<MockupData> {
         content: summaryRow.content,
         commentCount: summaryRow.comment_count,
         createdAt: summaryRow.created_at,
+        rowAnnotations: normalizeRowAnnotations(summaryRow.row_annotations),
       }
     : null
 
