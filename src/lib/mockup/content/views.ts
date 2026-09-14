@@ -16,6 +16,12 @@ export interface MockupView {
   filters: boolean
   /** Learning views expose the Subject filter. */
   subject?: boolean
+  /** PAP views expose the Quarter filter (added on review feedback). */
+  quarter?: boolean
+  /** PAP Detail exposes the Implementation Level filter. */
+  implLevel?: boolean
+  /** Learning (Internal) exposes the Grade filter. */
+  grade?: boolean
   /** Last dashboard view — carries the overall-feedback card. */
   last?: boolean
   /** Sits in the Reference group at the right of the tab strip. */
@@ -62,6 +68,7 @@ export const VIEWS: MockupView[] = [
       "Identify which priority academic processes are strongest or weakest across schools.",
     kqs: ["KQ10", "KQ11", "KQ12", "KQ13", "KQ15", "KQ16", "KQ17"],
     filters: true,
+    quarter: true,
   },
   {
     id: "v4",
@@ -72,6 +79,8 @@ export const VIEWS: MockupView[] = [
       "Diagnose gaps within each academic process criterion, one process at a time.",
     kqs: ["KQ10", "KQ11", "KQ12", "KQ13", "KQ15", "KQ16", "KQ17"],
     filters: true,
+    quarter: true,
+    implLevel: true,
   },
   {
     id: "v5",
@@ -93,6 +102,7 @@ export const VIEWS: MockupView[] = [
     kqs: ["KQ23"],
     filters: true,
     subject: true,
+    grade: true,
   },
   {
     id: "v6b",

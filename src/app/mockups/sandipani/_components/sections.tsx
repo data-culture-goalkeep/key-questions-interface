@@ -62,8 +62,12 @@ export function Sections({
               alignItems: "stretch",
             }}
           >
-            {s.cards.map((c) => (
-              <ElementCard key={c.num} card={c} viewId={viewId} />
+            {s.cards.map((c, ci) => (
+              <ElementCard
+                key={c.num === "—" ? `_note${ci}` : c.num}
+                card={c}
+                viewId={viewId}
+              />
             ))}
           </div>
         </div>

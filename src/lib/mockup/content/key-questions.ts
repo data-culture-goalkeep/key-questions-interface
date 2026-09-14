@@ -25,7 +25,8 @@ export const KEY_QUESTIONS: Record<string, KeyQuestion> = {
       "Check right allocation and reach · report numbers to funders · decide direct vs indirect reach",
   },
   KQ04: {
-    question: "How many School Leaders and MSHMs are covered?",
+    question:
+      "How many School Leaders (P/VP, PSHM and MSHM) are covered? MSHMs are a subset of School Leaders.",
     action: "Check allocation against MSHMs as the key coaching lever",
   },
   KQ05: {
@@ -36,19 +37,19 @@ export const KEY_QUESTIONS: Record<string, KeyQuestion> = {
   },
   KQ06: {
     question:
-      "How is the quality of Sandipani training sessions for SLs, MSHMs and teachers?",
+      "How is the quality of Sandipani training sessions for School Leaders (including P/VP, PSHM and MSHM) and teachers?",
     action:
       "Build internal capacity · strategise on content and delivery from participant feedback",
   },
   KQ07: {
     question:
-      "What proportion of School Leaders and MSHMs completed trainings?",
+      "What proportion of School Leaders (including P/VP, PSHM and MSHM) completed trainings?",
     action:
       "Design support for absentees · diagnose reasons · refine selection for trainings",
   },
   KQ08: {
     question:
-      "What proportion of relevant teachers completed planned trainings, by subject? (by gender)",
+      "What proportion of relevant teachers — Grades 6–8, in Hindi, English and Mathematics — completed planned trainings, by subject? (by gender)",
     action:
       "Design support for absentees · diagnose reasons · refine selection for trainings",
   },

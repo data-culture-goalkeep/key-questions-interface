@@ -58,6 +58,7 @@ export async function summarizeNextSteps(): Promise<SummarizeResult> {
         .from("sandipani_comments")
         .select("reviewer_id, scope, view_id, element_num, body, created_at")
         .eq("to_incorporate", true)
+        .is("incorporated_at", null)
         .order("created_at"),
       supabase
         .from("sandipani_element_answers")
@@ -97,7 +98,7 @@ export async function summarizeNextSteps(): Promise<SummarizeResult> {
     if (rows.length === 0)
       return {
         error:
-          'No comments are marked "To be incorporated" yet — flag some first.',
+          'No pending comments are marked "To be incorporated" — flag some first.',
       }
 
     const items: FeedbackItem[] = rows.map((c) => {

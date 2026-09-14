@@ -212,6 +212,7 @@ function FocusedPanel({
               createdAt: optimistic.createdAt,
               editedAt: null,
               toIncorporate: false,
+              incorporatedAt: null,
             },
           ],
         }),

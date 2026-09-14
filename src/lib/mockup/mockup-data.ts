@@ -40,6 +40,7 @@ interface CommentRow {
   created_at: string
   edited_at: string | null
   to_incorporate: boolean
+  incorporated_at: string | null
 }
 interface SummaryRow {
   id: string
@@ -71,7 +72,7 @@ export async function getMockupData(): Promise<MockupData> {
     supabase
       .from("sandipani_comments")
       .select(
-        "id, reviewer_id, scope, view_id, element_num, parent_id, body, confidence, is_example, resolved_at, created_at, edited_at, to_incorporate",
+        "id, reviewer_id, scope, view_id, element_num, parent_id, body, confidence, is_example, resolved_at, created_at, edited_at, to_incorporate, incorporated_at",
       )
       .order("created_at"),
     supabase
@@ -117,6 +118,7 @@ export async function getMockupData(): Promise<MockupData> {
     createdAt: c.created_at,
     editedAt: c.edited_at,
     toIncorporate: c.to_incorporate,
+    incorporatedAt: c.incorporated_at,
   }))
 
   const summaryRow = (summaryRes.data as SummaryRow[])[0]

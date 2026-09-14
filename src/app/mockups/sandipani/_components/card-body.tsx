@@ -1,5 +1,7 @@
 "use client"
 
+import type { CSSProperties } from "react"
+
 import { LEVELS, LEVEL_RAMP } from "@/lib/mockup/content/palette"
 import {
   formatTableRows,
@@ -22,6 +24,15 @@ function tableScrollHeight(card: TableCard): number {
   return TABLE_HEADER_H + Math.max(rows, 1) * TABLE_ROW_H
 }
 
+const chipStyle = (bg: string, fg: string): CSSProperties => ({
+  padding: "2px 7px",
+  borderRadius: 4,
+  background: bg,
+  color: fg,
+  fontSize: 10,
+  fontWeight: 600,
+})
+
 export function CardBody({ card }: { card: MockupCard }) {
   switch (card.type) {
     case "scorecard":
@@ -33,7 +44,23 @@ export function CardBody({ card }: { card: MockupCard }) {
     case "stack":
       return <StackChart card={card} />
     case "note":
-      return (
+      return card.tone === "warn" ? (
+        <div
+          style={{
+            fontSize: 12.5,
+            lineHeight: 1.6,
+            fontWeight: 700,
+            textDecoration: "underline",
+            color: "#9A6B1F",
+            background: "#FBF1E4",
+            border: "1px solid #E6C58A",
+            borderRadius: 8,
+            padding: "10px 12px",
+          }}
+        >
+          {card.body}
+        </div>
+      ) : (
         <div
           style={{
             fontSize: 12.5,
@@ -50,6 +77,14 @@ export function CardBody({ card }: { card: MockupCard }) {
 function Scorecard({ card }: { card: ScorecardCard }) {
   const len = card.value.length
   const size = len > 6 ? 23 : len > 4 ? 26 : 29
+  // Dashboard-wide rule: a ≥70% headline shows green.
+  const pctMatch = /^(\d+(?:\.\d+)?)%$/.exec(card.value.trim())
+  const highGreen = !card.reverse && pctMatch && Number(pctMatch[1]) >= 70
+  const valueColor = card.reverse
+    ? "var(--mk-bad-fg)"
+    : highGreen
+      ? "var(--mk-good-fg)"
+      : "var(--mk-ink)"
   return (
     <div
       style={{
@@ -75,7 +110,7 @@ function Scorecard({ card }: { card: ScorecardCard }) {
           fontWeight: 700,
           letterSpacing: "-.025em",
           lineHeight: 1,
-          color: card.reverse ? "var(--mk-bad-fg)" : "var(--mk-ink)",
+          color: valueColor,
           whiteSpace: "nowrap",
         }}
       >
@@ -123,19 +158,23 @@ function Scorecard({ card }: { card: ScorecardCard }) {
 }
 
 function DataTable({ card }: { card: TableCard }) {
-  const rows = formatTableRows(card.head, card.rows)
+  const rows = formatTableRows(card.head, card.rows, card.rag)
   const toneBg = (t: string) =>
     t === "good"
       ? "var(--mk-good-bg)"
-      : t === "bad"
-        ? "var(--mk-bad-bg)"
-        : "transparent"
+      : t === "warn"
+        ? "#FBF1E4"
+        : t === "bad"
+          ? "var(--mk-bad-bg)"
+          : "transparent"
   const toneFg = (t: string) =>
     t === "good"
       ? "var(--mk-good-fg)"
-      : t === "bad"
-        ? "var(--mk-bad-fg)"
-        : "var(--mk-ink)"
+      : t === "warn"
+        ? "#9A6B1F"
+        : t === "bad"
+          ? "var(--mk-bad-fg)"
+          : "var(--mk-ink)"
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Fixed height so the card never reflows when a filter changes the
@@ -194,13 +233,27 @@ function DataTable({ card }: { card: TableCard }) {
                       borderBottom: "1px solid var(--mk-border-hair)",
                       textAlign: cell.numeric ? "right" : "left",
                       fontWeight: cell.emphasis ? 600 : ci === 0 ? 500 : 400,
-                      color: toneFg(cell.tone),
+                      color: cell.link ? "var(--mk-blue)" : toneFg(cell.tone),
                       background: toneBg(cell.tone),
                       fontSize: ci === 0 ? 12 : 11.5,
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {cell.display}
+                    {cell.link ? (
+                      <a
+                        href="#"
+                        onClick={(e) => e.preventDefault()}
+                        style={{
+                          color: "var(--mk-blue)",
+                          textDecoration: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {cell.display}
+                      </a>
+                    ) : (
+                      cell.display
+                    )}
                   </td>
                 ))}
               </tr>
@@ -223,30 +276,26 @@ function DataTable({ card }: { card: TableCard }) {
           <span style={{ fontSize: 10.5, color: "var(--mk-sec)" }}>
             {card.legend}
           </span>
-          <span
-            style={{
-              padding: "2px 7px",
-              borderRadius: 4,
-              background: "var(--mk-good-bg)",
-              color: "var(--mk-good-fg)",
-              fontSize: 10,
-              fontWeight: 600,
-            }}
-          >
-            ahead of peers
-          </span>
-          <span
-            style={{
-              padding: "2px 7px",
-              borderRadius: 4,
-              background: "var(--mk-bad-bg)",
-              color: "var(--mk-bad-fg)",
-              fontSize: 10,
-              fontWeight: 600,
-            }}
-          >
-            behind peers
-          </span>
+          {card.rag ? (
+            <>
+              <span style={chipStyle("var(--mk-good-bg)", "var(--mk-good-fg)")}>
+                on track
+              </span>
+              <span style={chipStyle("#FBF1E4", "#9A6B1F")}>at risk</span>
+              <span style={chipStyle("var(--mk-bad-bg)", "var(--mk-bad-fg)")}>
+                behind
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={chipStyle("var(--mk-good-bg)", "var(--mk-good-fg)")}>
+                ahead of peers
+              </span>
+              <span style={chipStyle("var(--mk-bad-bg)", "var(--mk-bad-fg)")}>
+                behind peers
+              </span>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -371,6 +420,11 @@ function BarChart({ card }: { card: BarsCard }) {
 }
 
 function StackChart({ card }: { card: StackCard }) {
+  // Default: the four learning levels. `series` overrides label + colour for
+  // any other composition (e.g. Female/Male, Achieved/Remaining).
+  const labels = card.series ? card.series.map((s) => s.label) : LEVELS
+  const colors = card.series ? card.series.map((s) => s.color) : LEVEL_RAMP
+  const darkText = (i: number) => (card.series ? false : i === 3)
   return (
     // Top-aligned so a 2-row stack (e.g. by gender) lines its bars up with a
     // 3-row stack beside it (by subject / by grade).
@@ -390,7 +444,7 @@ function StackChart({ card }: { card: StackCard }) {
           marginBottom: 14,
         }}
       >
-        {LEVELS.map((l, i) => (
+        {labels.map((l, i) => (
           <span
             key={l}
             style={{
@@ -406,7 +460,7 @@ function StackChart({ card }: { card: StackCard }) {
                 width: 9,
                 height: 9,
                 borderRadius: 2,
-                background: LEVEL_RAMP[i],
+                background: colors[i],
                 flex: "none",
               }}
             />
@@ -449,16 +503,20 @@ function StackChart({ card }: { card: StackCard }) {
                   className="mk-mono"
                   style={{
                     width: `${val}%`,
-                    background: LEVEL_RAMP[i],
+                    background: colors[i],
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     fontSize: 10.5,
                     fontWeight: 600,
-                    color: i === 3 ? "#fff" : "var(--mk-ink)",
+                    color: darkText(i) ? "#fff" : "var(--mk-ink)",
                   }}
                 >
-                  {val >= 9 ? `${val}%` : ""}
+                  {r.abs && val >= 12
+                    ? `${val}% (${r.abs[i]})`
+                    : val >= 9
+                      ? `${val}%`
+                      : ""}
                 </div>
               ))}
             </div>

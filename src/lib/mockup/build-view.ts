@@ -6,20 +6,21 @@
 
 import {
   ALL_DISTRICTS,
-  ALL_DIVISIONS,
   DISTRICTS,
   DIVISIONS,
+  TOTAL_SCHOOLS,
   divisionIndex,
 } from "./content/dimensions"
 import { COLOR, LEVELS } from "./content/palette"
 import {
   adjustRate,
+  DEFAULT_FILTERS,
   formatCount,
   scaleCount,
   type MockupFilters,
 } from "./content/scenarios"
 
-const { blue: BLUE, teal: TEAL, coral: CORAL, yellow: YEL, ink: INK } = COLOR
+const { blue: BLUE, teal: TEAL, coral: CORAL, yellow: YEL } = COLOR
 
 // ---------------------------------------------------------------------------
 // Card / section types
@@ -58,6 +59,8 @@ export interface TableColumn {
   percent?: boolean
   reverse?: boolean
   threshold?: number
+  /** Render cells as a (dummy) drill-through link to another dashboard. */
+  link?: boolean
 }
 
 export interface TableCard extends CardBase {
@@ -72,6 +75,13 @@ export interface TableCard extends CardBase {
    * the table to one row) doesn't change the card's height.
    */
   rowsReserve?: number
+  /**
+   * RAG-colour a marker column from an achieved/target ratio per row
+   * (green ≥90%, amber ≥50%, red below).
+   */
+  rag?: { valueCol: number; targetCol: number; markCol: number }
+  /** Keep the given row order (don't sort by the first column). */
+  unsorted?: boolean
 }
 
 export interface BarsCard extends CardBase {
@@ -86,12 +96,20 @@ export interface BarsCard extends CardBase {
 export interface StackCard extends CardBase {
   type: "stack"
   note?: string
-  rows: { label: string; values: number[] }[]
+  /**
+   * Custom stack series (legend label + colour). When absent the chart uses
+   * the four learning levels — the design's original behaviour.
+   */
+  series?: { label: string; color: string }[]
+  /** Per-row 100%-normalised segments; `abs` is the matching raw counts. */
+  rows: { label: string; values: number[]; abs?: number[] }[]
 }
 
 export interface NoteCard extends CardBase {
   type: "note"
   body: string
+  /** "warn" renders the note as a bold, underlined disclaimer banner. */
+  tone?: "warn"
 }
 
 export type MockupCard =
@@ -159,7 +177,7 @@ class ViewBuilder {
     // Sort by the first column (division / district / name) unless it's a
     // curated ordered list.
     const sorted =
-      opts.kind === "Action list"
+      opts.kind === "Action list" || opts.unsorted
         ? rows
         : [...rows].sort((a, b) =>
             String(a[0]).localeCompare(String(b[0]), undefined, {
@@ -231,6 +249,7 @@ class ViewBuilder {
   // ----- View 1: Input & Reach -----
   private v1() {
     const { S, F } = this
+    // Female / Male teacher counts by subject (for the 100% stacked 1.7).
     const teach = [
       [92, 64],
       [88, 61],
@@ -240,7 +259,7 @@ class ViewBuilder {
     return [
       {
         title: "Reach of key stakeholders",
-        note: "Scorecards 1.1–1.5 · school leaders include MSHMs; do not add the two counts",
+        note: "Scorecards 1.1–1.5 · School Leader = Principal, Vice-Principal, PSHM and MSHM. MSHMs are a subset — do not add 1.4 and 1.5.",
         grid: 5,
         cards: [
           this.score("1.1", "Schools reached", F(S(275)), {
@@ -250,24 +269,34 @@ class ViewBuilder {
           this.score("1.2", "Middle-grade students", F(S(247721)), {
             kq: "KQ02",
             splits: [
-              { value: F(S(121626)), label: "Girls" },
-              { value: F(S(121095)), label: "Boys" },
+              { value: F(S(121626)) + " (50%)", label: "Girls" },
+              { value: F(S(121095)) + " (50%)", label: "Boys" },
             ],
+            sub: "Updated once a year from the school MIS",
           }),
           this.score("1.3", "Middle-grade teachers", F(S(460)), {
             kq: "KQ03",
             splits: [
-              { value: F(S(262)), label: "Female" },
-              { value: F(S(198)), label: "Male" },
+              { value: F(S(262)) + " (57%)", label: "Female" },
+              { value: F(S(198)) + " (43%)", label: "Male" },
             ],
+            sub: "Updated once a year from the school MIS",
           }),
-          this.score("1.4", "School leaders reached", F(S(275)), {
+          this.score("1.4", "School Leaders reached", F(S(275)), {
             kq: "KQ04",
-            sub: "3–4 per school",
+            splits: [
+              { value: F(S(96)) + " (35%)", label: "Female" },
+              { value: F(S(179)) + " (65%)", label: "Male" },
+            ],
+            sub: "Target School Leaders across all SV-programme schools (3–4 per school)",
           }),
           this.score("1.5", "MSHMs reached", F(S(230)), {
             kq: "KQ04",
-            sub: "One per school",
+            splits: [
+              { value: F(S(83)) + " (36%)", label: "Female" },
+              { value: F(S(147)) + " (64%)", label: "Male" },
+            ],
+            sub: "MSHMs are a subset of School Leaders — one per school",
           }),
         ] as MockupCard[],
       },
@@ -303,41 +332,28 @@ class ViewBuilder {
               rowsReserve: DIVISIONS.length,
             },
           ),
-          {
-            type: "bars",
-            kind: "Grouped bar chart",
-            num: "1.7",
-            name: "Middle-grade teachers by subject and gender",
-            kq: "KQ03",
-            max: 100,
-            legend: [
-              { label: "Female", color: BLUE },
-              { label: "Male", color: TEAL },
-            ],
-            groups: subj.map((s, i) => ({
-              label: s,
-              bars: [
-                { value: S(teach[i][0]), color: BLUE },
-                { value: S(teach[i][1]), color: TEAL },
-              ],
-            })),
-          } as BarsCard,
+          this.genderStack(
+            "1.7",
+            "Middle-grade teachers by subject and gender",
+            "KQ03",
+            subj.map((s, i) => [s, teach[i][0], teach[i][1]]),
+          ),
         ] as MockupCard[],
       },
       {
-        title: "Annual activity plan: quarterly target vs achieved",
+        title: "Annual activity plan: quarterly progress",
         note: "State-level data · Division and District filters do not apply",
         grid: 3,
         cards: [
-          this.columnChart("1.8", "School implementation", "KQ05", 300, [
+          this.progressStack("1.8", "School implementation", "KQ05", [
             ["Q2", 275, 67],
             ["Q3", 275, 0],
           ]),
-          this.columnChart("1.9", "State interventions", "KQ05", 20, [
+          this.progressStack("1.9", "State interventions", "KQ05", [
             ["Q1", 17, 17],
             ["Q2", 15, 12],
           ]),
-          this.columnChart("1.10", "Internal team activities", "KQ05", 12, [
+          this.progressStack("1.10", "Internal team activities", "KQ05", [
             ["Q1", 10, 3],
             ["Q2", 9, 4],
           ]),
@@ -400,38 +416,74 @@ class ViewBuilder {
                 "Yet to plan",
               ],
             ],
-            { kind: "Action list", kq: "KQ05", minWidth: "760px" },
+            {
+              kind: "Action list",
+              kq: "KQ05",
+              minWidth: "760px",
+              rag: { valueCol: 4, targetCol: 3, markCol: 5 },
+              legend:
+                "Status RAG: achieved vs target (green ≥90%, amber ≥50%, red below). Activities and targets are sourced from the annual calendar. —",
+            },
           ),
         ] as MockupCard[],
       },
     ]
   }
 
-  private columnChart(
+  /** Female / Male share by category as a 100% stacked bar with counts. */
+  private genderStack(
     num: string,
     name: string,
     kq: string,
-    max: number,
-    groups: [string, number, number][],
-  ): BarsCard {
+    rows: (string | number)[][],
+  ): StackCard {
+    const { S } = this
     return {
-      type: "bars",
-      kind: "Grouped column chart",
+      type: "stack",
+      kind: "100% stacked bar chart",
       num,
       name,
       kq,
-      max,
-      legend: [
-        { label: "Target", color: INK },
-        { label: "Achieved", color: TEAL },
+      series: [
+        { label: "Female", color: BLUE },
+        { label: "Male", color: TEAL },
       ],
-      groups: groups.map(([label, t, a]) => ({
-        label,
-        bars: [
-          { value: t, color: INK },
-          { value: a, color: TEAL },
-        ],
-      })),
+      rows: rows.map(([label, f, m]) => {
+        const fs = S(f as number)
+        const ms = S(m as number)
+        const t = fs + ms || 1
+        const fp = Math.round((fs / t) * 100)
+        return { label: String(label), values: [fp, 100 - fp], abs: [fs, ms] }
+      }),
+    }
+  }
+
+  /** Achieved vs remaining against target, as a 100% stacked bar with counts. */
+  private progressStack(
+    num: string,
+    name: string,
+    kq: string,
+    rows: [string, number, number][],
+  ): StackCard {
+    return {
+      type: "stack",
+      kind: "100% stacked bar chart",
+      num,
+      name,
+      kq,
+      series: [
+        { label: "Achieved", color: TEAL },
+        { label: "Not yet", color: "#DAD7D4" },
+      ],
+      rows: rows.map(([label, target, achieved]) => {
+        const t = target || 1
+        const ap = Math.min(100, Math.round((achieved / t) * 100))
+        return {
+          label,
+          values: [ap, 100 - ap],
+          abs: [achieved, Math.max(0, target - achieved)],
+        }
+      }),
     }
   }
 
@@ -465,15 +517,21 @@ class ViewBuilder {
     return [
       {
         title: "Stakeholders completing training",
-        note: "School leaders include MSHMs; MSHMs are a subset and should not be added separately",
-        grid: 6,
+        note: "School Leader = Principal, Vice-Principal, PSHM and MSHM. MSHMs are a subset — do not add 2.1 and 2.2.",
+        grid: 3,
         cards: [
-          this.score("2.1", "% School Leaders trained", A(78) + "%", { kq: "KQ07" }),
-          this.score("2.2", "% MSHMs trained", A(73) + "%", { kq: "KQ07" }),
-          this.score("2.3", "% Teachers trained", A(73) + "%", { kq: "KQ08" }),
-          this.score("2.4", "School leaders trained", F(S(214)), { kq: "KQ07" }),
-          this.score("2.5", "MSHMs trained", F(S(168)), { kq: "KQ07" }),
-          this.score("2.6", "Teachers trained", F(S(336)), { kq: "KQ08" }),
+          this.score("2.1", "School Leaders trained", A(78) + "%", {
+            kq: "KQ07",
+            sub: F(S(214)) + " of " + F(S(275)) + " (P/VP, PSHM and MSHM)",
+          }),
+          this.score("2.2", "MSHMs trained", A(73) + "%", {
+            kq: "KQ07",
+            sub: F(S(168)) + " of " + F(S(230)),
+          }),
+          this.score("2.3", "Teachers trained", A(73) + "%", {
+            kq: "KQ08",
+            sub: F(S(336)) + " of " + F(S(460)) + " (Grades 6–8, Hi/En/Ma)",
+          }),
         ] as MockupCard[],
       },
       {
@@ -598,9 +656,7 @@ class ViewBuilder {
         title: "Assessment participation",
         grid: "repeat(3, minmax(0, 1fr))",
         cards: [
-          this.score("2.15", "Pre-test completed", A(86) + "%", { kq: "KQ06" }),
-          this.score("2.16", "Post-test completed", A(74) + "%", { kq: "KQ06" }),
-          this.score("2.17", "Both completed", A(70) + "%", { kq: "KQ06" }),
+          // 2.18 sits above the pre/post-test scorecards (review feedback).
           {
             type: "bars",
             kind: "Grouped bar chart",
@@ -630,6 +686,9 @@ class ViewBuilder {
               ],
             })),
           } as BarsCard,
+          this.score("2.15", "Pre-test completed", A(86) + "%", { kq: "KQ06" }),
+          this.score("2.16", "Post-test completed", A(74) + "%", { kq: "KQ06" }),
+          this.score("2.17", "Both completed", A(70) + "%", { kq: "KQ06" }),
         ] as MockupCard[],
       },
       {
@@ -648,9 +707,9 @@ class ViewBuilder {
               { label: "Facilitation" },
               { label: "Content" },
               { label: "Delivery" },
-              pct("Pre-test"),
-              pct("Post-test"),
-              pct("Both"),
+              pct("Pre-test completion"),
+              pct("Post-test completion"),
+              pct("Both completion"),
             ],
             [
               ["School Leader Induction", "School leaders", 46, "Yes", "No", "Yes", "Yes", "Yes", 93, 89, 85],
@@ -666,7 +725,7 @@ class ViewBuilder {
               kq: "KQ06",
               minWidth: "1000px",
               legend:
-                "Participants = unique attendees; Both tests % = matched pre- and post-test records ÷ unique attendees —",
+                "Pre/post-test figures are completion rates, not scores. Participants = unique attendees; Both completion % = matched pre- and post-test records ÷ unique attendees —",
             },
           ),
         ] as MockupCard[],
@@ -716,7 +775,7 @@ class ViewBuilder {
       "Learning Tracking",
       "Dakshata",
       "Remediation",
-      "Academic Incharge",
+      "Academic Inchargeship",
       "Academic Samvaad",
     ]
     return [
@@ -763,16 +822,16 @@ class ViewBuilder {
             type: "bars",
             kind: "Bar chart",
             num: "3.3",
-            name: "Number of priority academic processes implemented",
+            name: "Priority-process implementation level",
             kq: "KQ10–KQ17",
             max: 60,
             percent: true,
             legend: [{ label: "% of schools", color: TEAL }],
             groups: [
-              { label: "0 processes", bars: [{ value: 7, color: CORAL }] },
-              { label: "1–3", bars: [{ value: 28, color: YEL }] },
-              { label: "4–6", bars: [{ value: 49, color: TEAL }] },
-              { label: "7 processes", bars: [{ value: 16, color: BLUE }] },
+              { label: "None", bars: [{ value: 7, color: CORAL }] },
+              { label: "Low", bars: [{ value: 28, color: YEL }] },
+              { label: "Medium", bars: [{ value: 49, color: TEAL }] },
+              { label: "High", bars: [{ value: 16, color: BLUE }] },
             ],
           } as BarsCard,
         ] as MockupCard[],
@@ -825,21 +884,39 @@ class ViewBuilder {
   // ----- View 4: PAP Detail -----
   private v4() {
     const { A } = this
-    return PAP.map((p) => ({
-      title: p.name,
-      note: "All data is for the latest School Visit record",
-      grid:
-        p.cards.length >= 4
-          ? "repeat(auto-fit,minmax(200px,1fr))"
-          : "repeat(auto-fit,minmax(240px,1fr))",
-      cards: [
-        ...p.cards.map((c) =>
-          this.score(c.num, c.name, A(c.value, c.reverse) + "%", {
-            kq: p.kq,
-            sub: c.sub || undefined,
-            reverse: !!c.reverse,
-          }),
-        ),
+    return PAP.map((p) => {
+      // Criteria-level scorecards first (4.3–4.5 style), then a single
+      // all / some / none summary, then the division table (review feedback).
+      const allCard = p.cards.find((c) => /^all criteria met$/i.test(c.name))
+      const noneCard = p.cards.find((c) => c.reverse)
+      const criteria = p.cards.filter((c) => c !== allCard && c !== noneCard)
+      const cards: MockupCard[] = criteria.map((c) =>
+        this.score(c.num, c.name, A(c.value, c.reverse) + "%", {
+          kq: p.kq,
+          sub: c.sub || undefined,
+          reverse: !!c.reverse,
+        }),
+      )
+      if (allCard && noneCard) {
+        const all = A(allCard.value)
+        const none = A(noneCard.value, 1)
+        const some = Math.max(0, 100 - all - none)
+        cards.push({
+          type: "stack",
+          kind: "100% stacked bar chart",
+          num: allCard.num,
+          name: "Criteria met — all / some / none",
+          kq: p.kq,
+          full: true,
+          series: [
+            { label: "All criteria", color: TEAL },
+            { label: "Some criteria", color: YEL },
+            { label: "None", color: CORAL },
+          ],
+          rows: [{ label: "Schools", values: [all, some, none] }],
+        } as StackCard)
+      }
+      cards.push(
         this.table(
           p.tableNum,
           p.tableName,
@@ -852,8 +929,14 @@ class ViewBuilder {
             full: true,
           },
         ),
-      ] as MockupCard[],
-    }))
+      )
+      return {
+        title: p.name,
+        note: "All data is for the latest School Visit record",
+        grid: "repeat(auto-fit,minmax(220px,1fr))",
+        cards,
+      }
+    })
   }
 
   // ----- View 5: Teacher Practice -----
@@ -971,11 +1054,13 @@ class ViewBuilder {
               pct("Questioning"),
               pct("Student practice"),
               pct("Differentiation"),
+              pct("All practices"),
+              pct("None of the practices", true),
             ],
-            this.rowsForDiv(d56),
+            withAllNone(this.rowsForDiv(d56), 3),
             {
               kq: "KQ21",
-              minWidth: "640px",
+              minWidth: "780px",
               legend: "Percentages are calculated from CROs, not districts —",
             },
           ),
@@ -994,18 +1079,25 @@ class ViewBuilder {
               pct("Questioning"),
               pct("Student practice"),
               pct("Differentiation"),
+              pct("All practices"),
+              pct("None of the practices", true),
             ],
-            this.f.district === ALL_DISTRICTS
-              ? DISTRICTS.map((d, i) => [d, ...d57[i]])
-              : [
-                  [
-                    this.f.district,
-                    ...d57[Math.max(0, DISTRICTS.indexOf(this.f.district as never))],
+            withAllNone(
+              this.f.district === ALL_DISTRICTS
+                ? DISTRICTS.map((d, i) => [d, ...d57[i]])
+                : [
+                    [
+                      this.f.district,
+                      ...d57[
+                        Math.max(0, DISTRICTS.indexOf(this.f.district as never))
+                      ],
+                    ],
                   ],
-                ],
+              2,
+            ),
             {
               kq: "KQ21",
-              minWidth: "600px",
+              minWidth: "740px",
               legend: "Outliers: ≥5pp vs peer average —",
               rowsReserve: DISTRICTS.length,
             },
@@ -1018,7 +1110,7 @@ class ViewBuilder {
         cards: [
           this.score("5.9", "Strong student engagement", A(57) + "%", {
             kq: "KQ22",
-            sub: "Observed classrooms where at least 75% of students are actively on task (definition TBD)",
+            sub: "Observed classrooms where at least 50% of students are engaged on CFU and student practice",
           }),
           this.table(
             "5.12",
@@ -1191,7 +1283,26 @@ class ViewBuilder {
       note?: string
       grid: string | number
       cards: MockupCard[]
-    }[] = [
+    }[] = []
+
+    if (!ext)
+      secs.push({
+        title: "",
+        grid: 1,
+        cards: [
+          {
+            type: "note",
+            kind: "Note",
+            num: "—",
+            name: "Read these results as indicative only",
+            kq: "",
+            tone: "warn",
+            body: "THE RESULTS HERE ARE BASED ON ASSESSMENT OF ONLY A FEW / LIMITED NUMBER OF GRADE-LEVEL COMPETENCIES AND SHOULD BE READ AS ONLY INDICATIVE AND NOT CONCLUSIVE.",
+          } as NoteCard,
+        ] as MockupCard[],
+      })
+
+    secs.push(
       {
         title:
           "Latest " + (ext ? "external" : "spot") + "-assessment headline results",
@@ -1200,6 +1311,12 @@ class ViewBuilder {
         cards: [
           this.score(N + ".1", "Students assessed", F(S(ext ? 39240 : 42860)), {
             kq: "KQ23",
+            splits: [
+              {
+                value: F(S(ext ? 258 : 264)),
+                label: "schools assessed",
+              },
+            ],
             sub: "Latest " + (ext ? "evaluation round" : "spot-assessment round"),
           }),
           this.score(N + ".2", "English at Dakshata+", A(ext ? 54 : 57) + "%", {
@@ -1283,7 +1400,7 @@ class ViewBuilder {
           ),
         ],
       },
-    ]
+    )
     if (ext)
       secs.push({
         title: "Change across rounds",
@@ -1310,62 +1427,119 @@ class ViewBuilder {
   private v7() {
     const { A, S } = this
     const pct = this.pct.bind(this)
+    // Split each band into a teacher-practice table and a student-learning
+    // table, with "Developing" as a third practice category, and call out the
+    // number of schools assessed (review feedback on 8.1b).
     const band = (
       num: string,
       label: string,
       n: number,
-      rows: (string | number)[][],
-    ) => ({
-      title: label,
-      grid: "1fr 2.4fr",
-      cards: [
-        this.score(num + "a", label + " schools (#)", String(S(n)), {
-          kq: "KQ24",
-          sub: "Schools in analysis",
-        }),
-        this.table(
-          num + "b",
-          label + ": teacher practice and learning",
-          [
-            { label: "Teacher practice" },
-            { label: "Schools" },
-            pct("English Dakshata+"),
-            pct("Hindi Dakshata+"),
-            pct("Maths Dakshata+"),
-          ],
-          rows,
-          { kq: "KQ24", minWidth: "520px" },
-        ),
-      ] as MockupCard[],
-    })
+      practice: [string, number][],
+      learning: [string, number, number, number][],
+    ) => {
+      const assessed = Math.round(n * 0.92)
+      const share = Math.round((n / TOTAL_SCHOOLS) * 100)
+      return {
+        title: label,
+        note: `Assessment conducted in ${S(assessed)} of ${S(n)} schools in this band`,
+        grid: "1fr 1.4fr 1.7fr",
+        cards: [
+          this.score(num + "a", label + " schools", String(S(n)), {
+            kq: "KQ24",
+            sub: `${share}% of ${S(TOTAL_SCHOOLS)} SV schools`,
+          }),
+          this.table(
+            num + "b",
+            label + ": teacher practice",
+            [{ label: "Teacher practice" }, { label: "Schools" }],
+            practice.map(([p, s]) => [p, S(s)]),
+            { kq: "KQ24", minWidth: "260px", unsorted: true },
+          ),
+          this.table(
+            num + "c",
+            label + ": student learning",
+            [
+              { label: "Teacher practice" },
+              pct("English Dakshata+"),
+              pct("Hindi Dakshata+"),
+              pct("Maths Dakshata+"),
+            ],
+            learning.map(([p, e, h, m]) => [p, A(e), A(h), A(m)]),
+            { kq: "KQ24", minWidth: "420px", unsorted: true },
+          ),
+        ] as MockupCard[],
+      }
+    }
+    const implBase = [52, 55, 58, 62, 51] // impl, practice, Eng, Hin, Maths
     return [
       {
         title: "Patterns across implementation, teacher practice and learning",
         note: "Latest School Visit record; cumulative CRO records",
-        grid: 1,
+        grid: "1fr 1fr",
         cards: [
           {
             type: "note",
             kind: "Note",
             num: "—",
-            name: "Where the chain holds and where it breaks",
+            name: "How to read this view",
             kq: "",
-            body: "Read down the three implementation bands. If the chain holds, strong teacher practice should carry higher learning outcomes within every band — and high implementation should beat low. Where a band shows strong practice but flat learning, the break is between practice and outcome, not between process and practice.",
+            body: "Implementation = how fully a school runs the priority academic processes. Higher implementation is expected to lead to more teacher adoption of good practices, and then to better student learning. Read down the three bands: if the chain holds, stronger teacher practice carries higher learning within every band, and higher implementation beats lower. Where a band shows strong practice but flat learning, the break is between practice and outcome.",
+          } as NoteCard,
+          {
+            type: "note",
+            kind: "Note",
+            num: "—",
+            name: "What High / Medium / Low mean",
+            kq: "",
+            body: "Placeholder — final definitions to come from Purty. High = all priority academic processes in place with criteria strongly met. Medium = most processes in place, criteria partly met. Low = few processes in place or criteria weak. Teacher practice: Strong / Developing / Weak, where Developing means practices are emerging but not yet consistent.",
           } as NoteCard,
         ] as MockupCard[],
       },
-      band("8.1", "High-implementation", 47, [
-        ["Strong", S(38), A(66), A(70), A(59)],
-        ["Weak", S(9), A(49), A(54), A(42)],
-      ]),
-      band("8.2", "Medium-implementation", 55, [
-        ["Strong", S(31), A(59), A(64), A(52)],
-        ["Weak", S(24), A(44), A(49), A(37)],
-      ]),
-      band("8.3", "Low-implementation", 45, [
-        ["Strong", S(12), A(51), A(56), A(44)],
-        ["Weak", S(33), A(37), A(42), A(31)],
-      ]),
+      band(
+        "8.1",
+        "High-implementation",
+        47,
+        [
+          ["Strong", 30],
+          ["Developing", 11],
+          ["Weak", 6],
+        ],
+        [
+          ["Strong", 66, 70, 59],
+          ["Developing", 57, 62, 50],
+          ["Weak", 49, 54, 42],
+        ],
+      ),
+      band(
+        "8.2",
+        "Medium-implementation",
+        55,
+        [
+          ["Strong", 24],
+          ["Developing", 18],
+          ["Weak", 13],
+        ],
+        [
+          ["Strong", 59, 64, 52],
+          ["Developing", 51, 56, 44],
+          ["Weak", 44, 49, 37],
+        ],
+      ),
+      band(
+        "8.3",
+        "Low-implementation",
+        45,
+        [
+          ["Strong", 10],
+          ["Developing", 14],
+          ["Weak", 21],
+        ],
+        [
+          ["Strong", 51, 56, 44],
+          ["Developing", 43, 48, 36],
+          ["Weak", 37, 42, 31],
+        ],
+      ),
       {
         title: "",
         grid: 1,
@@ -1381,25 +1555,94 @@ class ViewBuilder {
               pct("English"),
               pct("Hindi"),
               pct("Maths"),
+              { label: "School page", link: true },
             ],
             [
-              ["CM RISE School Govindpura", "Bhopal", "High", "Strong", A(71), A(74), A(64)],
-              ["Sandipani Vidyalaya Rau", "Indore", "High", "Strong", A(68), A(72), A(61)],
-              ["Govt Excellence School Ujjain", "Ujjain", "High", "Strong", A(65), A(69), A(58)],
-              ["CM RISE School Morar", "Gwalior", "High", "Developing", A(58), A(63), A(51)],
-              ["Sandipani Vidyalaya Adhartal", "Jabalpur", "Medium", "Strong", A(60), A(65), A(54)],
-              ["Govt HSS Makronia", "Sagar", "Medium", "Developing", A(53), A(58), A(46)],
-              ["CM RISE School Rewa", "Rewa", "Medium", "Developing", A(51), A(56), A(44)],
-              ["Sandipani Vidyalaya Sohagpur", "Narmadapuram", "Medium", "Weak", A(45), A(50), A(38)],
-              ["Govt Excellence School Morena", "Morena", "Low", "Developing", A(43), A(48), A(36)],
-              ["CM RISE School Shahdol", "Shahdol", "Low", "Weak", A(36), A(41), A(30)],
-              ["Sandipani Vidyalaya Sehore", "Bhopal", "High", "Strong", A(67), A(71), A(60)],
-              ["Govt Model HSS Dewas", "Ujjain", "Medium", "Strong", A(58), A(63), A(51)],
+              ["CM RISE School Govindpura", "Bhopal", "High", "Strong", A(71), A(74), A(64), "View →"],
+              ["Sandipani Vidyalaya Rau", "Indore", "High", "Strong", A(68), A(72), A(61), "View →"],
+              ["Govt Excellence School Ujjain", "Ujjain", "High", "Strong", A(65), A(69), A(58), "View →"],
+              ["CM RISE School Morar", "Gwalior", "High", "Developing", A(58), A(63), A(51), "View →"],
+              ["Sandipani Vidyalaya Adhartal", "Jabalpur", "Medium", "Strong", A(60), A(65), A(54), "View →"],
+              ["Govt HSS Makronia", "Sagar", "Medium", "Developing", A(53), A(58), A(46), "View →"],
+              ["CM RISE School Rewa", "Rewa", "Medium", "Developing", A(51), A(56), A(44), "View →"],
+              ["Sandipani Vidyalaya Sohagpur", "Narmadapuram", "Medium", "Weak", A(45), A(50), A(38), "View →"],
+              ["Govt Excellence School Morena", "Morena", "Low", "Developing", A(43), A(48), A(36), "View →"],
+              ["CM RISE School Shahdol", "Shahdol", "Low", "Weak", A(36), A(41), A(30), "View →"],
+              ["Sandipani Vidyalaya Sehore", "Bhopal", "High", "Strong", A(67), A(71), A(60), "View →"],
+              ["Govt Model HSS Dewas", "Ujjain", "Medium", "Strong", A(58), A(63), A(51), "View →"],
             ],
             {
               kq: "KQ24",
-              minWidth: "860px",
-              legend: "Outliers: ≥5pp vs peer average, % columns only —",
+              minWidth: "940px",
+              legend:
+                "Outliers: ≥5pp vs peer average, % columns only. School page links open the school-level view on the SVF dashboard. —",
+            },
+          ),
+        ] as MockupCard[],
+      },
+      {
+        title: "",
+        grid: 1,
+        cards: [
+          this.table(
+            "8.5",
+            "Division-level results-chain comparison",
+            [
+              { label: "Division" },
+              { label: "Schools" },
+              pct("Avg implementation"),
+              pct("Avg teacher practice"),
+              pct("English"),
+              pct("Hindi"),
+              pct("Maths"),
+            ],
+            (this.divIdx() < 0
+              ? DIVISIONS
+              : [DIVISIONS[this.divIdx()]]
+            ).map((d) => [
+              d.name,
+              d.schools,
+              this.A(implBase[0]),
+              this.A(implBase[1]),
+              this.A(implBase[2]),
+              this.A(implBase[3]),
+              this.A(implBase[4]),
+            ]),
+            {
+              kq: "KQ24",
+              minWidth: "760px",
+              legend: "Outliers: ≥5pp vs peer average —",
+              rowsReserve: DIVISIONS.length,
+            },
+          ),
+        ] as MockupCard[],
+      },
+      {
+        title: "",
+        grid: 1,
+        cards: [
+          this.table(
+            "8.6",
+            "High / Medium / Low school counts by division",
+            [
+              { label: "Division" },
+              { label: "Schools" },
+              { label: "High" },
+              { label: "Medium" },
+              { label: "Low" },
+            ],
+            (this.divIdx() < 0
+              ? DIVISIONS
+              : [DIVISIONS[this.divIdx()]]
+            ).map((d) => {
+              const high = Math.round(d.schools * 0.32)
+              const med = Math.round(d.schools * 0.4)
+              return [d.name, d.schools, high, med, d.schools - high - med]
+            }),
+            {
+              kq: "KQ24",
+              minWidth: "520px",
+              rowsReserve: DIVISIONS.length,
             },
           ),
         ] as MockupCard[],
@@ -1574,17 +1817,14 @@ const PAP: PapProcess[] = [
     ],
   },
   {
+    // Remediation has a single indicator — no separate process indicators —
+    // so the old "Assessment evidence used" criterion (4.20) is dropped
+    // (review feedback).
     key: "rc",
     name: "Remediation",
     kq: "KQ15",
     cards: [
       { num: "4.19", name: "All criteria met", value: 46, sub: "" },
-      {
-        num: "4.20",
-        name: "Assessment evidence used",
-        value: 67,
-        sub: "Schools using assessment evidence to identify competencies requiring remediation",
-      },
       {
         num: "4.21",
         name: "Support matched to learning gaps",
@@ -1595,23 +1835,18 @@ const PAP: PapProcess[] = [
     ],
     tableNum: "4.23",
     tableName: "Remedial support by division",
-    cols: [
-      "All criteria met",
-      "Assessment evidence used",
-      "Support matched to gaps",
-      "None met",
-    ],
-    rev: [0, 0, 0, 1],
+    cols: ["All criteria met", "Support matched to gaps", "None met"],
+    rev: [0, 0, 1],
     rows: [
-      [38, 64, 55, 22],
-      [41, 67, 58, 7],
-      [43, 69, 60, 10],
-      [46, 72, 49, 12],
-      [45, 71, 56, 12],
-      [51, 59, 52, 17],
-      [53, 62, 55, 20],
-      [38, 64, 55, 22],
-      [43, 69, 60, 10],
+      [38, 55, 22],
+      [41, 58, 7],
+      [43, 60, 10],
+      [46, 49, 12],
+      [45, 56, 12],
+      [51, 52, 17],
+      [53, 55, 20],
+      [38, 55, 22],
+      [43, 60, 10],
     ],
   },
   {
@@ -1682,11 +1917,29 @@ const PAP: PapProcess[] = [
   },
 ]
 
+/**
+ * Append "% all practices" and "% none of the practices" columns, derived from
+ * the three practice-rate columns starting at `startIdx` (review feedback on
+ * 5.6 / 5.7). Deterministic, invented like the rest of the mock data.
+ */
+function withAllNone(
+  rows: (string | number)[][],
+  startIdx: number,
+): (string | number)[][] {
+  return rows.map((r) => {
+    const vals = [r[startIdx], r[startIdx + 1], r[startIdx + 2]].map(Number)
+    const avg = vals.reduce((a, b) => a + b, 0) / 3
+    const all = Math.max(1, Math.min(99, Math.round(avg * 0.5)))
+    const none = Math.max(1, Math.min(99, Math.round((100 - avg) * 0.28)))
+    return [...r, all, none]
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Table conditional formatting
 // ---------------------------------------------------------------------------
 
-export type CellTone = "good" | "bad" | "none"
+export type CellTone = "good" | "warn" | "bad" | "none"
 
 export interface FormattedCell {
   display: string
@@ -1694,16 +1947,23 @@ export interface FormattedCell {
   /** right-aligned + mono (every column except the first). */
   numeric: boolean
   emphasis: boolean
+  /** Render as a dummy drill-through link. */
+  link?: boolean
 }
 
 /**
  * Colour percentage cells against the column mean across visible rows.
  * Green ≥ threshold above, red ≥ threshold below; `reverse` columns invert.
  * Only colours when more than one row is visible.
+ *
+ * On top of the peer comparison: any non-reversed percentage ≥ 70% shows
+ * green (the dashboard-wide status threshold). An optional `rag` marker
+ * column is coloured green/amber/red by an achieved ÷ target ratio.
  */
 export function formatTableRows(
   head: TableColumn[],
   rows: (string | number)[][],
+  rag?: TableCard["rag"],
 ): FormattedCell[][] {
   const means = head.map((h, ci) => {
     if (!h.percent) return null
@@ -1736,13 +1996,34 @@ export function formatTableRows(
           emphasis = true
         }
       }
+      // Dashboard-wide rule: ≥70% is green.
+      if (h?.percent && typeof v === "number" && !h.reverse && v >= 70) {
+        tone = "good"
+        emphasis = true
+      }
+      // RAG marker column, coloured from achieved ÷ target.
+      if (rag && ci === rag.markCol) {
+        const val = Number(r[rag.valueCol])
+        const tgt = Number(r[rag.targetCol])
+        if (Number.isFinite(val) && Number.isFinite(tgt) && tgt > 0) {
+          const ratio = val / tgt
+          tone = ratio >= 0.9 ? "good" : ratio >= 0.5 ? "warn" : "bad"
+          emphasis = true
+        }
+      }
       const display =
         h?.percent && typeof v === "number"
           ? v + "%"
           : typeof v === "number"
             ? formatCount(v)
             : String(v)
-      return { display, tone, numeric: ci !== 0, emphasis }
+      return {
+        display,
+        tone,
+        numeric: ci !== 0 && !h?.link,
+        emphasis,
+        link: h?.link,
+      }
     }),
   )
 }
@@ -1768,14 +2049,18 @@ export function elementsForView(
   return out
 }
 
+/** Total reviewable elements across the seven dashboard views. */
+export function totalElements(): number {
+  return ["v1", "v2", "v3", "v4", "v5", "v6a", "v6b", "v7"].reduce(
+    (a, v) => a + elementsForView(v, DEFAULT_FILTERS).length,
+    0,
+  )
+}
+
 /** Stable element metadata, independent of filters (uses default filters). */
 export function elementMeta(viewId: string, num: string) {
-  const found = elementsForView(viewId, {
-    year: "2025–26",
-    division: ALL_DIVISIONS,
-    district: "All Districts",
-    subject: "All Subjects",
-    scenario: "asis",
-  }).find((e) => e.num === num)
+  const found = elementsForView(viewId, DEFAULT_FILTERS).find(
+    (e) => e.num === num,
+  )
   return found ?? { num, name: num, kind: "Table" as ChartKind, kq: "" }
 }
