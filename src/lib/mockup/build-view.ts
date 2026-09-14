@@ -57,8 +57,8 @@ export interface ScorecardCard extends CardBase {
 export interface TableColumn {
   label: string
   percent?: boolean
+  /** High value is the bad outcome (e.g. "None met") — flips the ≥70/<30 rule. */
   reverse?: boolean
-  threshold?: number
   /** Render cells as a (dummy) drill-through link to another dashboard. */
   link?: boolean
 }
@@ -200,8 +200,8 @@ class ViewBuilder {
     }
   }
 
-  private pct(label: string, reverse?: boolean | number, threshold = 5): TableColumn {
-    return { label, percent: true, reverse: !!reverse, threshold }
+  private pct(label: string, reverse?: boolean | number): TableColumn {
+    return { label, percent: true, reverse: !!reverse }
   }
 
   private get dcols(): TableColumn[] {
@@ -514,25 +514,28 @@ class ViewBuilder {
   private v2() {
     const { A, S, F } = this
     const pct = this.pct.bind(this)
+    // Bhopal's MSHM % and Sagar's Teacher % are deliberately low (<30%) so
+    // the red threshold has real examples to show, not just green/none.
     const dr = [
-      [24, 72, 19, 66, 29, 67],
+      [24, 72, 19, 24, 29, 67],
       [25, 75, 20, 69, 31, 70],
       [26, 77, 21, 71, 33, 72],
       [27, 80, 22, 74, 35, 75],
       [54, 81, 45, 74, 82, 76],
-      [29, 72, 19, 79, 39, 67],
+      [29, 72, 19, 79, 39, 28],
       [24, 75, 20, 66, 41, 70],
       [25, 77, 21, 69, 43, 72],
       [27, 82, 23, 74, 47, 77],
     ]
+    // Betul's MSHM % and Raisen's Teacher % likewise.
     const dtr = [
-      [18, 69, 15, 63, 25, 64],
+      [18, 69, 15, 26, 25, 64],
       [19, 72, 16, 66, 27, 67],
       [20, 74, 17, 68, 29, 69],
       [21, 77, 18, 71, 31, 72],
       [22, 79, 19, 73, 33, 74],
       [23, 82, 15, 76, 35, 77],
-      [24, 69, 16, 63, 37, 64],
+      [24, 69, 16, 63, 37, 27],
       [18, 72, 17, 66, 39, 67],
       [19, 74, 18, 68, 41, 69],
       [20, 77, 19, 71, 43, 72],
@@ -610,7 +613,7 @@ class ViewBuilder {
               kq: "KQ07–KQ08",
               minWidth: "520px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier (% columns only) —",
+                "Green ≥70%, red <30% (% columns only) —",
             },
           ),
         ] as MockupCard[],
@@ -643,7 +646,7 @@ class ViewBuilder {
               kq: "KQ07–KQ08",
               minWidth: "560px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier (% columns only) —",
+                "Green ≥70%, red <30% (% columns only) —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -771,8 +774,9 @@ class ViewBuilder {
       ["Academic Inchargeship", 43, "KQ16"],
       ["Academic Samvaad", 61, "KQ17"],
     ]
+    // Bhopal's CWT and Betul's CWT (below) are deliberately low (<30%).
     const d34 = [
-      [38, 42, 45, 49, 52, 56, 59],
+      [24, 42, 45, 49, 52, 56, 59],
       [42, 45, 49, 52, 56, 59, 38],
       [45, 49, 52, 56, 59, 38, 42],
       [49, 52, 56, 59, 38, 42, 45],
@@ -783,7 +787,7 @@ class ViewBuilder {
       [45, 49, 52, 56, 59, 38, 42],
     ]
     const d35 = [
-      [35, 38, 42, 45, 48, 52, 55],
+      [22, 38, 42, 45, 48, 52, 55],
       [42, 45, 48, 52, 55, 58, 35],
       [48, 52, 55, 58, 35, 38, 42],
       [55, 58, 35, 38, 42, 45, 48],
@@ -874,7 +878,7 @@ class ViewBuilder {
               kq: "KQ10–KQ17",
               minWidth: "860px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier. Percentages are calculated from schools, not districts —",
+                "Green ≥70%, red <30%. Percentages are calculated from schools, not districts —",
             },
           ),
         ] as MockupCard[],
@@ -899,7 +903,7 @@ class ViewBuilder {
               kq: "KQ10–KQ17",
               minWidth: "800px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
+                "Green ≥70%, red <30% —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -955,7 +959,7 @@ class ViewBuilder {
             legend:
               "Green ≥70%, red <30%" +
               (p.rev.includes(1) ? " (reversed for 'None met')" : "") +
-              "; between those, ≥5pp vs peers flags an outlier —",
+              " —",
             full: true,
           },
         ),
@@ -973,8 +977,9 @@ class ViewBuilder {
   private v5() {
     const { A, S, F } = this
     const pct = this.pct.bind(this)
+    // Bhopal's Differentiation % and Betul's (below) are deliberately low.
     const d56 = [
-      [94, 56, 48, 35],
+      [94, 56, 48, 24],
       [102, 59, 51, 37],
       [109, 61, 53, 39],
       [116, 64, 56, 41],
@@ -985,7 +990,7 @@ class ViewBuilder {
       [148, 64, 58, 39],
     ]
     const d57 = [
-      [95, 55, 47, 34],
+      [95, 55, 47, 23],
       [102, 58, 50, 36],
       [109, 60, 52, 38],
       [116, 63, 55, 40],
@@ -1092,7 +1097,7 @@ class ViewBuilder {
               kq: "KQ21",
               minWidth: "780px",
               legend:
-                "Green ≥70%, red <30% (reversed for 'None of the practices'); between those, ≥5pp vs peer average flags an outlier. Percentages are calculated from CROs, not districts —",
+                "Green ≥70%, red <30% (reversed for 'None of the practices'). Percentages are calculated from CROs, not districts —",
             },
           ),
         ] as MockupCard[],
@@ -1130,7 +1135,7 @@ class ViewBuilder {
               kq: "KQ21",
               minWidth: "740px",
               legend:
-                "Green ≥70%, red <30% (reversed for 'None of the practices'); between those, ≥5pp vs peer average flags an outlier —",
+                "Green ≥70%, red <30% (reversed for 'None of the practices') —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -1181,7 +1186,7 @@ class ViewBuilder {
               kq: "KQ22",
               minWidth: "620px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
+                "Green ≥70%, red <30% —",
             },
           ),
         ] as MockupCard[],
@@ -1212,7 +1217,7 @@ class ViewBuilder {
               kq: "KQ22",
               minWidth: "560px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
+                "Green ≥70%, red <30% —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -1292,11 +1297,9 @@ class ViewBuilder {
                   ? "Grade"
                   : l),
             // A high share of students Below Dakshata is the bad outcome —
-            // reverse so peer-comparison and the ≥70%/<30% rule both point
-            // the right way (previously hardcoded false, a pre-existing bug
-            // the caption already claimed was handled).
+            // reverse so the ≥70%/<30% rule points the right way (previously
+            // hardcoded false, a pre-existing bug).
             l === "Below Dakshata",
-            2,
           ),
         ),
       ),
@@ -1412,7 +1415,7 @@ class ViewBuilder {
               kq: "KQ23",
               minWidth: "1180px",
               legend:
-                "Green ≥70%, red <30% (reversed for Below Dakshata); between those, ≥2pp vs peer average flags an outlier —",
+                "Green ≥70%, red <30% (reversed for Below Dakshata) —",
             },
           ),
         ],
@@ -1433,7 +1436,7 @@ class ViewBuilder {
               kq: "KQ23",
               minWidth: "1180px",
               legend:
-                "Green ≥70%, red <30% (reversed for Below Dakshata); between those, ≥2pp vs peer average flags an outlier —",
+                "Green ≥70%, red <30% (reversed for Below Dakshata) —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -1616,7 +1619,7 @@ class ViewBuilder {
               ["CM RISE School Rewa", "Rewa", "Medium", "Developing", A(51), A(56), A(44), "View →"],
               ["Sandipani Vidyalaya Sohagpur", "Narmadapuram", "Medium", "Weak", A(45), A(50), A(38), "View →"],
               ["Govt Excellence School Morena", "Morena", "Low", "Developing", A(43), A(48), A(36), "View →"],
-              ["CM RISE School Shahdol", "Shahdol", "Low", "Weak", A(36), A(41), A(30), "View →"],
+              ["CM RISE School Shahdol", "Shahdol", "Low", "Weak", A(24), A(41), A(27), "View →"],
               ["Sandipani Vidyalaya Sehore", "Bhopal", "High", "Strong", A(67), A(71), A(60), "View →"],
               ["Govt Model HSS Dewas", "Ujjain", "Medium", "Strong", A(58), A(63), A(51), "View →"],
             ],
@@ -1624,7 +1627,7 @@ class ViewBuilder {
               kq: "KQ24",
               minWidth: "940px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier (% columns only). School page links open the school-level view on the SVF dashboard. —",
+                "Green ≥70%, red <30% (% columns only). School page links open the school-level view on the SVF dashboard. —",
             },
           ),
         ] as MockupCard[],
@@ -1661,7 +1664,7 @@ class ViewBuilder {
               kq: "KQ24",
               minWidth: "760px",
               legend:
-                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
+                "Green ≥70%, red <30% —",
               rowsReserve: DIVISIONS.length,
             },
           ),
@@ -2002,53 +2005,22 @@ export interface FormattedCell {
 }
 
 /**
- * Colour percentage cells against the column mean across visible rows.
- * Green ≥ threshold above, red ≥ threshold below; `reverse` columns invert.
- * Only colours when more than one row is visible.
- *
- * On top of the peer comparison: any percentage ≥ 70% shows green and < 30%
- * shows red (the dashboard-wide status thresholds) — flipped for `reverse`
- * columns, where a high value is the bad outcome (e.g. "None met" ≥ 70% is
- * red, < 30% is green). Values in between keep the peer-comparison tone. An
- * optional `rag` marker column is coloured green/amber/red by an achieved ÷
- * target ratio.
+ * Colour percentage cells purely off their own value — ≥70% green, <30% red
+ * (the dashboard-wide status thresholds), flipped for `reverse` columns where
+ * a high value is the bad outcome (e.g. "None met" ≥ 70% is red, < 30% is
+ * green). Values in between are uncoloured. An optional `rag` marker column
+ * is coloured green/amber/red by an achieved ÷ target ratio instead.
  */
 export function formatTableRows(
   head: TableColumn[],
   rows: (string | number)[][],
   rag?: TableCard["rag"],
 ): FormattedCell[][] {
-  const means = head.map((h, ci) => {
-    if (!h.percent) return null
-    const vals = rows
-      .map((r) => r[ci])
-      .filter((v): v is number => typeof v === "number")
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
-  })
-
   return rows.map((r) =>
     r.map((v, ci) => {
       const h = head[ci]
       let tone: CellTone = "none"
       let emphasis = false
-      if (
-        h?.percent &&
-        typeof v === "number" &&
-        means[ci] !== null &&
-        rows.length > 1
-      ) {
-        const d = v - (means[ci] as number)
-        const thr = h.threshold ?? 5
-        const worse = h.reverse ? d > 0 : d < 0
-        const better = h.reverse ? d < 0 : d > 0
-        if (Math.abs(d) >= thr && worse) {
-          tone = "bad"
-          emphasis = true
-        } else if (Math.abs(d) >= thr && better) {
-          tone = "good"
-          emphasis = true
-        }
-      }
       // Dashboard-wide rule: ≥70% is green, <30% is red — flipped for
       // `reverse` columns, where a high value is the bad outcome.
       if (h?.percent && typeof v === "number") {

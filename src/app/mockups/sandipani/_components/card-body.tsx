@@ -291,10 +291,10 @@ function DataTable({ card }: { card: TableCard }) {
           ) : (
             <>
               <span style={chipStyle("var(--mk-good-bg)", "var(--mk-good-fg)")}>
-                ahead of peers
+                ≥70%
               </span>
               <span style={chipStyle("var(--mk-bad-bg)", "var(--mk-bad-fg)")}>
-                behind peers
+                &lt;30%
               </span>
             </>
           )}
