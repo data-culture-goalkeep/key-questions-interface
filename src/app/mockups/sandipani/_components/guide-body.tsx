@@ -133,9 +133,10 @@ export function GuideBody() {
               color: "var(--mk-sec)",
             }}
           >
-            Percentage columns are colour-coded against the peer average — green
-            where a division or district is ahead, red where it is behind.
-            Learning-level tables use a tighter threshold.
+            Percentage columns are colour-coded against a fixed benchmark —
+            green at 70% and above, red below 30%. Columns where a high value
+            is the bad outcome (e.g. &ldquo;None met&rdquo;) use the same
+            thresholds flipped.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
             <span
@@ -148,7 +149,7 @@ export function GuideBody() {
                 fontWeight: 600,
               }}
             >
-              ≥5pp above peers
+              ≥70%
             </span>
             <span
               style={{
@@ -160,7 +161,7 @@ export function GuideBody() {
                 fontWeight: 600,
               }}
             >
-              ≥5pp below peers
+              &lt;30%
             </span>
           </div>
         </InfoCard>
