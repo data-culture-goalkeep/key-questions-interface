@@ -6,7 +6,11 @@ import remarkGfm from "remark-gfm"
 
 import { saveSummaryAnnotations } from "@/lib/mockup/actions"
 import { summarizeNextSteps } from "@/lib/mockup/summarize"
-import type { MockupSummary, SummaryRowAnnotation } from "@/lib/mockup/types"
+import {
+  SUMMARIZE_LOCKED,
+  type MockupSummary,
+  type SummaryRowAnnotation,
+} from "@/lib/mockup/types"
 
 import { useMockup } from "../mockup-provider"
 import { relativeTime } from "./ui"
@@ -155,26 +159,49 @@ export function NextStepsPanel() {
             <strong>&ldquo;To be incorporated&rdquo;</strong> ({flagged} pending)
             and asks Claude for a change list. Rows lock once their change
             ships.
+            {SUMMARIZE_LOCKED && (
+              <>
+                {" "}
+                <strong>Locked</strong> while a round is in progress —
+                regenerating would re-collate confirmed rows into a new
+                summary and lose their place.
+              </>
+            )}
           </p>
         </div>
         <div style={{ flex: 1 }} />
         <button
           type="button"
           onClick={run}
-          disabled={pending || flagged === 0}
+          disabled={SUMMARIZE_LOCKED || pending || flagged === 0}
+          title={
+            SUMMARIZE_LOCKED
+              ? "Locked while a round is in progress"
+              : undefined
+          }
           style={{
             padding: "9px 16px",
             borderRadius: 8,
             border: 0,
-            background: !pending && flagged > 0 ? "var(--mk-ink)" : "#d8d6d6",
+            background:
+              !SUMMARIZE_LOCKED && !pending && flagged > 0
+                ? "var(--mk-ink)"
+                : "#d8d6d6",
             color: "#fff",
             fontSize: 12.5,
             fontWeight: 600,
-            cursor: !pending && flagged > 0 ? "pointer" : "default",
+            cursor:
+              !SUMMARIZE_LOCKED && !pending && flagged > 0
+                ? "pointer"
+                : "default",
             whiteSpace: "nowrap",
           }}
         >
-          {pending ? "Summarizing…" : "Summarize Next Steps"}
+          {SUMMARIZE_LOCKED
+            ? "🔒 Summarize Next Steps"
+            : pending
+              ? "Summarizing…"
+              : "Summarize Next Steps"}
         </button>
       </div>
 
