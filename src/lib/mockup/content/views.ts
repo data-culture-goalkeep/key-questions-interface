@@ -91,6 +91,7 @@ export const VIEWS: MockupView[] = [
       "Track classroom practice and student engagement, including differences by teacher gender.",
     kqs: ["KQ21", "KQ22"],
     filters: true,
+    quarter: true,
   },
   {
     id: "v6a",

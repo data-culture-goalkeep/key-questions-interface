@@ -1230,6 +1230,17 @@ class ViewBuilder {
   private v6(ext: boolean) {
     const { A, S, F } = this
     const N = ext ? "7" : "6"
+    // Only a subset of schools have spot-assessment data available, split
+    // proportionally by division; district split is deterministic but
+    // invented (no per-district school-count master data exists).
+    const assessedTotal = ext ? 258 : 264
+    const assessedByDivision = DIVISIONS.map((d) =>
+      Math.round(d.schools * (assessedTotal / TOTAL_SCHOOLS)),
+    )
+    const districtVariation = [2, -1, 0, 3, -2, 1, -3, 2, -1, -1]
+    const assessedByDistrict = DISTRICTS.map((_, i) =>
+      Math.max(1, Math.round(assessedTotal / DISTRICTS.length + districtVariation[i])),
+    )
     const bySub = ext
       ? [
           [21, 25, 33, 21],
@@ -1354,7 +1365,7 @@ class ViewBuilder {
             kq: "KQ23",
             splits: [
               {
-                value: F(S(ext ? 258 : 264)),
+                value: F(S(assessedTotal)),
                 label: "schools assessed",
               },
             ],
@@ -1409,11 +1420,14 @@ class ViewBuilder {
           this.table(
             N + ".8",
             "Learning levels by division",
-            [{ label: "Division" }, ...lvHead],
-            this.rowsForDiv(dtab).map((r) => [r[0], ...r.slice(2)]),
+            [{ label: "Division" }, { label: "Schools assessed" }, ...lvHead],
+            this.rowsForDiv(dtab).map((r) => {
+              const di = DIVISIONS.findIndex((d) => d.name === r[0])
+              return [r[0], assessedByDivision[di] ?? 0, ...r.slice(2)]
+            }),
             {
               kq: "KQ23",
-              minWidth: "1180px",
+              minWidth: "1260px",
               legend:
                 "Green ≥70%, red <30% (reversed for Below Dakshata) —",
             },
@@ -1427,14 +1441,18 @@ class ViewBuilder {
           this.table(
             N + ".9",
             "Learning levels by district",
-            [{ label: "District" }, ...lvHead],
-            DISTRICTS.map((d, i) => [d, ...dtab[i % dtab.length]]).filter(
+            [{ label: "District" }, { label: "Schools assessed" }, ...lvHead],
+            DISTRICTS.map((d, i) => [
+              d,
+              assessedByDistrict[i],
+              ...dtab[i % dtab.length],
+            ]).filter(
               (r) =>
                 this.f.district === ALL_DISTRICTS || r[0] === this.f.district,
             ),
             {
               kq: "KQ23",
-              minWidth: "1180px",
+              minWidth: "1260px",
               legend:
                 "Green ≥70%, red <30% (reversed for Below Dakshata) —",
               rowsReserve: DISTRICTS.length,
@@ -1507,11 +1525,12 @@ class ViewBuilder {
               pct("Hindi Dakshata+"),
               pct("Maths Dakshata+"),
             ],
-            // Schools column matches the practice tier's count from the "b"
-            // table (same tier order) — review feedback asked for the count
-            // before the "Teacher practice" column.
+            // Schools column is the practice tier's count from the "b" table
+            // (same tier order), scaled down by the band's assessed ratio —
+            // only a subset of schools have spot-assessment data, so this
+            // must come in lower than the "a" scorecard's band total.
             learning.map(([p, e, h, m], i) => [
-              S(practice[i]?.[1] ?? 0),
+              S(Math.round((practice[i]?.[1] ?? 0) * (assessed / n))),
               p,
               A(e),
               A(h),
@@ -1522,7 +1541,6 @@ class ViewBuilder {
         ] as MockupCard[],
       }
     }
-    const implBase = [52, 55, 58, 62, 51] // impl, practice, Eng, Hin, Maths
     return [
       {
         title: "Patterns across implementation, teacher practice and learning",
@@ -1637,46 +1655,8 @@ class ViewBuilder {
         grid: 1,
         cards: [
           this.table(
-            "8.5",
-            "Division-level results-chain comparison",
-            [
-              { label: "Division" },
-              { label: "Schools" },
-              pct("Avg implementation"),
-              pct("Avg teacher practice"),
-              pct("English"),
-              pct("Hindi"),
-              pct("Maths"),
-            ],
-            (this.divIdx() < 0
-              ? DIVISIONS
-              : [DIVISIONS[this.divIdx()]]
-            ).map((d) => [
-              d.name,
-              d.schools,
-              this.A(implBase[0]),
-              this.A(implBase[1]),
-              this.A(implBase[2]),
-              this.A(implBase[3]),
-              this.A(implBase[4]),
-            ]),
-            {
-              kq: "KQ24",
-              minWidth: "760px",
-              legend:
-                "Green ≥70%, red <30% —",
-              rowsReserve: DIVISIONS.length,
-            },
-          ),
-        ] as MockupCard[],
-      },
-      {
-        title: "",
-        grid: 1,
-        cards: [
-          this.table(
             "8.6",
-            "High / Medium / Low school counts by division",
+            "Implementation levels by Division",
             [
               { label: "Division" },
               { label: "Schools" },

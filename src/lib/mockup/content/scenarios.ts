@@ -47,7 +47,9 @@ export const ALL_QUARTERS = "All Quarters"
 export const ALL_GRADES = "All Grades"
 export const ALL_IMPL_LEVELS = "All Levels"
 
-export const QUARTERS = ["Q1", "Q2", "Q3", "Q4"] as const
+// Labelled by month range (FY starts April) rather than Q1–Q4, per review
+// feedback — same fiscal-quarter order underneath.
+export const QUARTERS = ["Apr-Jun", "Jul-Sep", "Oct-Dec", "Jan-Mar"] as const
 export const IMPL_LEVELS = ["None", "Low", "Medium", "High"] as const
 
 export interface MockupFilters {
@@ -92,10 +94,10 @@ const YEAR_COUNT_FACTOR: Record<string, number> = {
 // Review-feedback filters (PAP quarter, learning grade, PAP implementation
 // level). Deterministic nudges, same spirit as Year / District above.
 const QUARTER_RATE_DELTA: Record<string, number> = {
-  Q1: -9,
-  Q2: -3,
-  Q3: 2,
-  Q4: 6,
+  "Apr-Jun": -9,
+  "Jul-Sep": -3,
+  "Oct-Dec": 2,
+  "Jan-Mar": 6,
 }
 const GRADE_RATE_DELTA: Record<string, number> = {
   "Grade 6": -5,
