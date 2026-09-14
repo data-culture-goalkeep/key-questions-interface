@@ -609,7 +609,8 @@ class ViewBuilder {
             {
               kq: "KQ07–KQ08",
               minWidth: "520px",
-              legend: "Outliers: ≥5pp vs peer average, % columns only —",
+              legend:
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier (% columns only) —",
             },
           ),
         ] as MockupCard[],
@@ -641,7 +642,8 @@ class ViewBuilder {
             {
               kq: "KQ07–KQ08",
               minWidth: "560px",
-              legend: "Outliers: ≥5pp vs peer average, % columns only —",
+              legend:
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier (% columns only) —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -748,7 +750,7 @@ class ViewBuilder {
               kq: "KQ06",
               minWidth: "1000px",
               legend:
-                "Pre/post-test figures are completion rates, not scores. Participants = unique attendees; Both completion % = matched pre- and post-test records ÷ unique attendees —",
+                "Green ≥70%, red <30%. Pre/post-test figures are completion rates, not scores. Participants = unique attendees; Both completion % = matched pre- and post-test records ÷ unique attendees —",
             },
           ),
         ] as MockupCard[],
@@ -871,7 +873,8 @@ class ViewBuilder {
             {
               kq: "KQ10–KQ17",
               minWidth: "860px",
-              legend: "Percentages are calculated from schools, not districts —",
+              legend:
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier. Percentages are calculated from schools, not districts —",
             },
           ),
         ] as MockupCard[],
@@ -895,7 +898,8 @@ class ViewBuilder {
             {
               kq: "KQ10–KQ17",
               minWidth: "800px",
-              legend: "Outliers: ≥5pp vs peer average —",
+              legend:
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -948,7 +952,10 @@ class ViewBuilder {
           {
             kq: p.kq,
             minWidth: 220 + p.cols.length * 120 + "px",
-            legend: "Outliers: ≥5pp vs peers; 'None met' reversed —",
+            legend:
+              "Green ≥70%, red <30%" +
+              (p.rev.includes(1) ? " (reversed for 'None met')" : "") +
+              "; between those, ≥5pp vs peers flags an outlier —",
             full: true,
           },
         ),
@@ -1084,7 +1091,8 @@ class ViewBuilder {
             {
               kq: "KQ21",
               minWidth: "780px",
-              legend: "Percentages are calculated from CROs, not districts —",
+              legend:
+                "Green ≥70%, red <30% (reversed for 'None of the practices'); between those, ≥5pp vs peer average flags an outlier. Percentages are calculated from CROs, not districts —",
             },
           ),
         ] as MockupCard[],
@@ -1121,7 +1129,8 @@ class ViewBuilder {
             {
               kq: "KQ21",
               minWidth: "740px",
-              legend: "Outliers: ≥5pp vs peer average —",
+              legend:
+                "Green ≥70%, red <30% (reversed for 'None of the practices'); between those, ≥5pp vs peer average flags an outlier —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -1171,7 +1180,8 @@ class ViewBuilder {
             {
               kq: "KQ22",
               minWidth: "620px",
-              legend: "Outliers: ≥5pp vs peer average —",
+              legend:
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
             },
           ),
         ] as MockupCard[],
@@ -1201,7 +1211,8 @@ class ViewBuilder {
             {
               kq: "KQ22",
               minWidth: "560px",
-              legend: "Outliers: ≥5pp vs peer average —",
+              legend:
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -1280,7 +1291,11 @@ class ViewBuilder {
                 : l === "Grade Level"
                   ? "Grade"
                   : l),
-            false,
+            // A high share of students Below Dakshata is the bad outcome —
+            // reverse so peer-comparison and the ≥70%/<30% rule both point
+            // the right way (previously hardcoded false, a pre-existing bug
+            // the caption already claimed was handled).
+            l === "Below Dakshata",
             2,
           ),
         ),
@@ -1397,7 +1412,7 @@ class ViewBuilder {
               kq: "KQ23",
               minWidth: "1180px",
               legend:
-                "Red/green: ≥2pp worse/better than peers; lower is better for Below Dakshata —",
+                "Green ≥70%, red <30% (reversed for Below Dakshata); between those, ≥2pp vs peer average flags an outlier —",
             },
           ),
         ],
@@ -1417,7 +1432,8 @@ class ViewBuilder {
             {
               kq: "KQ23",
               minWidth: "1180px",
-              legend: "Red/green: ≥2pp worse/better than peers —",
+              legend:
+                "Green ≥70%, red <30% (reversed for Below Dakshata); between those, ≥2pp vs peer average flags an outlier —",
               rowsReserve: DISTRICTS.length,
             },
           ),
@@ -1608,7 +1624,7 @@ class ViewBuilder {
               kq: "KQ24",
               minWidth: "940px",
               legend:
-                "Outliers: ≥5pp vs peer average, % columns only. School page links open the school-level view on the SVF dashboard. —",
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier (% columns only). School page links open the school-level view on the SVF dashboard. —",
             },
           ),
         ] as MockupCard[],
@@ -1644,7 +1660,8 @@ class ViewBuilder {
             {
               kq: "KQ24",
               minWidth: "760px",
-              legend: "Outliers: ≥5pp vs peer average —",
+              legend:
+                "Green ≥70%, red <30%; between those, ≥5pp vs peer average flags an outlier —",
               rowsReserve: DIVISIONS.length,
             },
           ),
@@ -1989,8 +2006,10 @@ export interface FormattedCell {
  * Green ≥ threshold above, red ≥ threshold below; `reverse` columns invert.
  * Only colours when more than one row is visible.
  *
- * On top of the peer comparison: any non-reversed percentage ≥ 70% shows
- * green and < 30% shows red (the dashboard-wide status thresholds). An
+ * On top of the peer comparison: any percentage ≥ 70% shows green and < 30%
+ * shows red (the dashboard-wide status thresholds) — flipped for `reverse`
+ * columns, where a high value is the bad outcome (e.g. "None met" ≥ 70% is
+ * red, < 30% is green). Values in between keep the peer-comparison tone. An
  * optional `rag` marker column is coloured green/amber/red by an achieved ÷
  * target ratio.
  */
@@ -2030,13 +2049,16 @@ export function formatTableRows(
           emphasis = true
         }
       }
-      // Dashboard-wide rule: ≥70% is green, <30% is red.
-      if (h?.percent && typeof v === "number" && !h.reverse) {
-        if (v >= 70) {
-          tone = "good"
-          emphasis = true
-        } else if (v < 30) {
+      // Dashboard-wide rule: ≥70% is green, <30% is red — flipped for
+      // `reverse` columns, where a high value is the bad outcome.
+      if (h?.percent && typeof v === "number") {
+        const high = v >= 70
+        const low = v < 30
+        if (h.reverse ? high : low) {
           tone = "bad"
+          emphasis = true
+        } else if (h.reverse ? low : high) {
+          tone = "good"
           emphasis = true
         }
       }
