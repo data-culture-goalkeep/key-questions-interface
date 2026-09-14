@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { elementMeta } from "./build-view"
 import { viewById } from "./content/views"
 import { createAdminClient } from "./supabase/admin"
-import type { AnswerValue, MockupSummary } from "./types"
+import { SUMMARIZE_LOCKED, type AnswerValue, type MockupSummary } from "./types"
 
 const MODEL = "claude-sonnet-5"
 
@@ -42,6 +42,11 @@ export type SummarizeResult =
  * are redacted to "React error #441" in prod).
  */
 export async function summarizeNextSteps(): Promise<SummarizeResult> {
+  if (SUMMARIZE_LOCKED)
+    return {
+      error:
+        "Summarizing is locked while a round is in progress — confirmed rows would be re-collated into a fresh summary and lose their place. Ask a maintainer to unlock it once the current round is done.",
+    }
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey)

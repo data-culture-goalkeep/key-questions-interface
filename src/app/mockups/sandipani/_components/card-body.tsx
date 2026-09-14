@@ -77,10 +77,12 @@ export function CardBody({ card }: { card: MockupCard }) {
 function Scorecard({ card }: { card: ScorecardCard }) {
   const len = card.value.length
   const size = len > 6 ? 23 : len > 4 ? 26 : 29
-  // Dashboard-wide rule: a ≥70% headline shows green.
+  // Dashboard-wide rule: a ≥70% headline shows green, <30% shows red.
   const pctMatch = /^(\d+(?:\.\d+)?)%$/.exec(card.value.trim())
-  const highGreen = !card.reverse && pctMatch && Number(pctMatch[1]) >= 70
-  const valueColor = card.reverse
+  const pctVal = pctMatch ? Number(pctMatch[1]) : null
+  const highGreen = !card.reverse && pctVal !== null && pctVal >= 70
+  const lowRed = !card.reverse && pctVal !== null && pctVal < 30
+  const valueColor = card.reverse || lowRed
     ? "var(--mk-bad-fg)"
     : highGreen
       ? "var(--mk-good-fg)"
@@ -523,6 +525,19 @@ function StackChart({ card }: { card: StackCard }) {
           </div>
         ))}
       </div>
+      {card.caption && (
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 10.5,
+            fontStyle: "italic",
+            color: "var(--mk-muted)",
+            lineHeight: 1.4,
+          }}
+        >
+          {card.caption}
+        </div>
+      )}
     </div>
   )
 }

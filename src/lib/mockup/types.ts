@@ -1,6 +1,15 @@
 // Shared domain types for the Mockup Navigator (Sandipani dashboard review).
 // Mirrors the mockup_navigator schema; see docs/mockup-navigator/comment-schema.md.
 
+/**
+ * Temporarily disables "Summarize Next Steps" (both the button in
+ * next-steps-panel.tsx and the summarizeNextSteps() server action). Round 1
+ * confirmed a stale summary after someone regenerated it mid-round — flip
+ * this back to `false` once the team is done confirming/incorporating rows
+ * and wants a fresh summary of whatever's still pending.
+ */
+export const SUMMARIZE_LOCKED = true
+
 export type AnswerValue = "yes" | "partly" | "no"
 export type CommentScope = "element" | "page" | "overall"
 

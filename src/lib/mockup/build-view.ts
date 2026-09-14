@@ -103,6 +103,8 @@ export interface StackCard extends CardBase {
   series?: { label: string; color: string }[]
   /** Per-row 100%-normalised segments; `abs` is the matching raw counts. */
   rows: { label: string; values: number[]; abs?: number[] }[]
+  /** Small muted footnote below the chart — e.g. a placeholder definition. */
+  caption?: string
 }
 
 export interface NoteCard extends CardBase {
@@ -266,21 +268,22 @@ class ViewBuilder {
             kq: "KQ01",
             sub: "Sandipani Vidyalayas",
           }),
+          // Bottom "updated once a year" note dropped as redundant, and the
+          // % moved onto the label line so the value stays short enough to
+          // fit the split box cleanly (review feedback).
           this.score("1.2", "Middle-grade students", F(S(247721)), {
             kq: "KQ02",
             splits: [
-              { value: F(S(121626)) + " (50%)", label: "Girls" },
-              { value: F(S(121095)) + " (50%)", label: "Boys" },
+              { value: F(S(121626)), label: "Girls · 50%" },
+              { value: F(S(121095)), label: "Boys · 50%" },
             ],
-            sub: "Updated once a year from the school MIS",
           }),
           this.score("1.3", "Middle-grade teachers", F(S(460)), {
             kq: "KQ03",
             splits: [
-              { value: F(S(262)) + " (57%)", label: "Female" },
-              { value: F(S(198)) + " (43%)", label: "Male" },
+              { value: F(S(262)), label: "Female · 57%" },
+              { value: F(S(198)), label: "Male · 43%" },
             ],
-            sub: "Updated once a year from the school MIS",
           }),
           this.score("1.4", "School Leaders reached", F(S(275)), {
             kq: "KQ04",
@@ -345,18 +348,36 @@ class ViewBuilder {
         note: "State-level data · Division and District filters do not apply",
         grid: 3,
         cards: [
-          this.progressStack("1.8", "School implementation", "KQ05", [
-            ["Q2", 275, 67],
-            ["Q3", 275, 0],
-          ]),
-          this.progressStack("1.9", "State interventions", "KQ05", [
-            ["Q1", 17, 17],
-            ["Q2", 15, 12],
-          ]),
-          this.progressStack("1.10", "Internal team activities", "KQ05", [
-            ["Q1", 10, 3],
-            ["Q2", 9, 4],
-          ]),
+          this.progressStack(
+            "1.8",
+            "School implementation",
+            "KQ05",
+            [
+              ["Q2", 275, 67],
+              ["Q3", 275, 0],
+            ],
+            "Placeholder definition: achieved once every planned school visit for the quarter is completed and logged.",
+          ),
+          this.progressStack(
+            "1.9",
+            "State interventions",
+            "KQ05",
+            [
+              ["Q1", 17, 17],
+              ["Q2", 15, 12],
+            ],
+            "Placeholder definition: achieved once the state-level intervention's planned milestone for the quarter is signed off.",
+          ),
+          this.progressStack(
+            "1.10",
+            "Internal team activities",
+            "KQ05",
+            [
+              ["Q1", 10, 3],
+              ["Q2", 9, 4],
+            ],
+            "Placeholder definition: achieved once the internal team's planned activity for the quarter is completed and documented.",
+          ),
         ] as MockupCard[],
       },
       {
@@ -464,6 +485,7 @@ class ViewBuilder {
     name: string,
     kq: string,
     rows: [string, number, number][],
+    caption?: string,
   ): StackCard {
     return {
       type: "stack",
@@ -471,6 +493,7 @@ class ViewBuilder {
       num,
       name,
       kq,
+      caption,
       series: [
         { label: "Achieved", color: TEAL },
         { label: "Not yet", color: "#DAD7D4" },
@@ -1459,13 +1482,23 @@ class ViewBuilder {
             num + "c",
             label + ": student learning",
             [
+              { label: "Schools" },
               { label: "Teacher practice" },
               pct("English Dakshata+"),
               pct("Hindi Dakshata+"),
               pct("Maths Dakshata+"),
             ],
-            learning.map(([p, e, h, m]) => [p, A(e), A(h), A(m)]),
-            { kq: "KQ24", minWidth: "420px", unsorted: true },
+            // Schools column matches the practice tier's count from the "b"
+            // table (same tier order) — review feedback asked for the count
+            // before the "Teacher practice" column.
+            learning.map(([p, e, h, m], i) => [
+              S(practice[i]?.[1] ?? 0),
+              p,
+              A(e),
+              A(h),
+              A(m),
+            ]),
+            { kq: "KQ24", minWidth: "480px", unsorted: true },
           ),
         ] as MockupCard[],
       }
@@ -1957,8 +1990,9 @@ export interface FormattedCell {
  * Only colours when more than one row is visible.
  *
  * On top of the peer comparison: any non-reversed percentage ≥ 70% shows
- * green (the dashboard-wide status threshold). An optional `rag` marker
- * column is coloured green/amber/red by an achieved ÷ target ratio.
+ * green and < 30% shows red (the dashboard-wide status thresholds). An
+ * optional `rag` marker column is coloured green/amber/red by an achieved ÷
+ * target ratio.
  */
 export function formatTableRows(
   head: TableColumn[],
@@ -1996,10 +2030,15 @@ export function formatTableRows(
           emphasis = true
         }
       }
-      // Dashboard-wide rule: ≥70% is green.
-      if (h?.percent && typeof v === "number" && !h.reverse && v >= 70) {
-        tone = "good"
-        emphasis = true
+      // Dashboard-wide rule: ≥70% is green, <30% is red.
+      if (h?.percent && typeof v === "number" && !h.reverse) {
+        if (v >= 70) {
+          tone = "good"
+          emphasis = true
+        } else if (v < 30) {
+          tone = "bad"
+          emphasis = true
+        }
       }
       // RAG marker column, coloured from achieved ÷ target.
       if (rag && ci === rag.markCol) {
