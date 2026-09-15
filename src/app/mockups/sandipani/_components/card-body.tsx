@@ -16,11 +16,17 @@ import {
 // (which can drop a 10-row table to 1 row) never changes the card's size.
 // Small always-fixed tables (e.g. Female/Male) stay compact; big ones scroll.
 const TABLE_HEADER_H = 30
-const TABLE_ROW_H = 30
+// Measured rendered row height (padding + line-height) is ~33px, not 30 —
+// the previous 30 under-reserved the scroll area enough to clip the last
+// row of small tables (e.g. the 3-row 8.1c-style tables on view 7).
+const TABLE_ROW_H = 33
 const TABLE_MAX_ROWS = 9
 
 function tableScrollHeight(card: TableCard): number {
-  const rows = Math.min(card.rowsReserve ?? card.rows.length, TABLE_MAX_ROWS)
+  const rows = Math.min(
+    card.rowsReserve ?? card.rows.length,
+    card.maxRows ?? TABLE_MAX_ROWS,
+  )
   return TABLE_HEADER_H + Math.max(rows, 1) * TABLE_ROW_H
 }
 
