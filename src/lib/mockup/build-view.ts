@@ -82,6 +82,11 @@ export interface TableCard extends CardBase {
   rag?: { valueCol: number; targetCol: number; markCol: number }
   /** Keep the given row order (don't sort by the first column). */
   unsorted?: boolean
+  /**
+   * Override the default 9-row scroll cap so every row renders without an
+   * internal scrollbar. Grows the card — only use where that's wanted.
+   */
+  maxRows?: number
 }
 
 export interface BarsCard extends CardBase {
@@ -1502,7 +1507,11 @@ class ViewBuilder {
       return {
         title: label,
         note: `Assessment conducted in ${S(assessed)} of ${S(n)} schools in this band`,
-        grid: "1fr 1.4fr 1.7fr",
+        // Scorecard + practice table share the top row; the wider student-
+        // learning table (5 columns) gets a full-width row of its own below
+        // — squeezed into a third of the row it used to clip/scroll both
+        // ways at common viewport widths.
+        grid: "1fr 1.5fr",
         cards: [
           this.score(num + "a", label + " schools", String(S(n)), {
             kq: "KQ24",
@@ -1536,7 +1545,7 @@ class ViewBuilder {
               A(h),
               A(m),
             ]),
-            { kq: "KQ24", minWidth: "480px", unsorted: true },
+            { kq: "KQ24", minWidth: "480px", unsorted: true, full: true },
           ),
         ] as MockupCard[],
       }
@@ -1644,6 +1653,8 @@ class ViewBuilder {
             {
               kq: "KQ24",
               minWidth: "940px",
+              // All 12 schools visible without an internal scrollbar.
+              maxRows: 12,
               legend:
                 "Green ≥70%, red <30% (% columns only). School page links open the school-level view on the SVF dashboard. —",
             },
