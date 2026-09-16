@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { SUPABASE_JWKS } from "./jwks"
 
-// `/mockups` is the auth-free Mockup Navigator app — also excluded from the
-// middleware matcher in src/middleware.ts, so this entry is defence-in-depth.
-const PUBLIC_PATHS = ["/sign-in", "/auth", "/mockups"]
+// `/mockups` and `/cost-calculator` are auth-free apps — also excluded from
+// the middleware matcher in src/middleware.ts, so these entries are
+// defence-in-depth.
+const PUBLIC_PATHS = ["/sign-in", "/auth", "/mockups", "/cost-calculator"]
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })

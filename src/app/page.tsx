@@ -28,6 +28,13 @@ const APPS = [
       "Walk through dashboard mockups and capture review feedback. No sign-in needed.",
     hidden: false,
   },
+  {
+    href: "/cost-calculator",
+    name: "Cost Calculator",
+    description:
+      "Estimate monthly or annual technology costs for a Goalkeep Kickstarter project.",
+    hidden: false,
+  },
 ] as const
 
 export default function AppChooserPage() {
