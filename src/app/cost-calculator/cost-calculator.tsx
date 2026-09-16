@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, Landmark, Server, Sparkles } from "lucide-react"
+import { Check, ExternalLink, Landmark, Server, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,9 +47,14 @@ const AI_PRICING: Record<
   },
   claude: {
     standard: { monthlyUsd: 20, annualUsd: 200, detail: "Standard: $20 monthly or $200 annually" },
-    ngo: { monthlyUsd: 7.5, annualUsd: 90, detail: "Nonprofit estimate: $7.50/user/month" },
+    ngo: { monthlyUsd: 15, annualUsd: 180, detail: "2 nonprofit Team seats at $7.50/user/month (required minimum)" },
   },
 }
+
+const NONPROFIT_RESOURCES = {
+  claude: "https://claude.com/solutions/nonprofits#pricing",
+  chatgpt: "https://help.openai.com/en/articles/9359041-openai-for-nonprofits#what-is-openai-for-nonprofits",
+} as const
 
 function formatInr(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -232,7 +237,7 @@ export function CostCalculator() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium">AI client seat</span>
-                    <span className="block text-sm text-muted-foreground">One user for incremental client changes</span>
+                    <span className="block text-sm text-muted-foreground">AI access for incremental client changes</span>
                   </span>
                   <Switch
                     checked={enabledServices.ai}
@@ -268,6 +273,35 @@ export function CostCalculator() {
                     )
                   })}
                 </div>
+                {enabledServices.ai && pricingTier === "ngo" && (
+                  <div className="mt-4 rounded-lg border border-gk-blue-deep/20 bg-gk-blue-deep/5 p-3 text-sm leading-6 text-muted-foreground">
+                    {aiProvider === "claude" ? (
+                      <>
+                        Claude nonprofit pricing is available through a Team account, so this estimate includes the required two seats. {" "}
+                        <a
+                          href={NONPROFIT_RESOURCES.claude}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-gk-blue-deep underline underline-offset-2"
+                        >
+                          Check Claude eligibility and pricing <ExternalLink className="size-3" aria-hidden="true" />
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        ChatGPT Business Standard requires two paid seats, so this estimate includes both. {" "}
+                        <a
+                          href={NONPROFIT_RESOURCES.chatgpt}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-gk-blue-deep underline underline-offset-2"
+                        >
+                          Check OpenAI nonprofit eligibility <ExternalLink className="size-3" aria-hidden="true" />
+                        </a>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -306,7 +340,7 @@ export function CostCalculator() {
 
       <div className="mt-8 flex max-w-3xl flex-col gap-4 border-t pt-6 sm:flex-row sm:items-end sm:justify-between">
         <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-          Vercel and Supabase annual prices are calculated as 12 monthly payments. ChatGPT Business requires at least two paid seats, including nonprofit Standard seats.
+          Vercel and Supabase annual prices are calculated as 12 monthly payments. Check eligibility and plan details before making a purchasing decision.
         </p>
         <label className="grid w-full max-w-48 gap-1.5 text-sm font-medium">
           1 USD equals (₹)
@@ -319,6 +353,25 @@ export function CostCalculator() {
             aria-label="Indian rupees per United States dollar"
           />
         </label>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <span className="text-muted-foreground">Nonprofit pricing resources:</span>
+        <a
+          href={NONPROFIT_RESOURCES.claude}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 font-medium text-gk-blue-deep underline underline-offset-2"
+        >
+          Claude for Nonprofits <ExternalLink className="size-3" aria-hidden="true" />
+        </a>
+        <a
+          href={NONPROFIT_RESOURCES.chatgpt}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 font-medium text-gk-blue-deep underline underline-offset-2"
+        >
+          OpenAI for Nonprofits <ExternalLink className="size-3" aria-hidden="true" />
+        </a>
       </div>
     </main>
   )
