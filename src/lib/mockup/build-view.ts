@@ -1507,11 +1507,11 @@ class ViewBuilder {
       return {
         title: label,
         note: `Assessment conducted in ${S(assessed)} of ${S(n)} schools in this band`,
-        // Scorecard + practice table share the top row; the wider student-
-        // learning table (5 columns) gets a full-width row of its own below
-        // — squeezed into a third of the row it used to clip/scroll both
-        // ways at common viewport widths.
-        grid: "1fr 1.5fr",
+        // Scorecard, practice table and student-learning table share one
+        // row — the "a"/"b" columns are kept narrow (fixed px) so the wider
+        // "c" table (5 columns) still fits beside them without wrapping to
+        // a row of its own.
+        grid: "150px 296px 1fr",
         cards: [
           this.score(num + "a", label + " schools", String(S(n)), {
             kq: "KQ24",
@@ -1545,7 +1545,7 @@ class ViewBuilder {
               A(h),
               A(m),
             ]),
-            { kq: "KQ24", minWidth: "480px", unsorted: true, full: true },
+            { kq: "KQ24", minWidth: "480px", unsorted: true },
           ),
         ] as MockupCard[],
       }
