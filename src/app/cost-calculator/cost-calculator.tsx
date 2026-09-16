@@ -5,30 +5,34 @@ import { Check, Landmark, Server, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
 type BillingCycle = "monthly" | "annual"
 type PricingTier = "standard" | "ngo"
 type AiProvider = "chatgpt" | "claude"
-
-const INR_PER_USD = 96
+type ServicePlan = "free" | "pro"
 
 const FIXED_SERVICES = [
   {
     id: "vercel",
-    name: "Vercel Pro",
+    name: "Vercel",
     description: "One deploying seat",
-    monthlyUsd: 20,
-    annualUsd: 240,
+    prices: {
+      free: { monthlyUsd: 0, annualUsd: 0 },
+      pro: { monthlyUsd: 20, annualUsd: 240 },
+    },
     icon: Server,
   },
   {
     id: "supabase",
-    name: "Supabase Pro",
+    name: "Supabase",
     description: "One organisation",
-    monthlyUsd: 25,
-    annualUsd: 300,
+    prices: {
+      free: { monthlyUsd: 0, annualUsd: 0 },
+      pro: { monthlyUsd: 25, annualUsd: 300 },
+    },
     icon: Landmark,
   },
 ] as const
@@ -38,8 +42,8 @@ const AI_PRICING: Record<
   Record<PricingTier, { monthlyUsd: number; annualUsd: number; detail: string }>
 > = {
   chatgpt: {
-    standard: { monthlyUsd: 20, annualUsd: 240, detail: "Standard: $20/user/month" },
-    ngo: { monthlyUsd: 10, annualUsd: 96, detail: "Nonprofit: $10 monthly or $8/month billed annually" },
+    standard: { monthlyUsd: 50, annualUsd: 480, detail: "2 Business Standard seats (required minimum)" },
+    ngo: { monthlyUsd: 20, annualUsd: 192, detail: "2 nonprofit Business Standard seats (required minimum)" },
   },
   claude: {
     standard: { monthlyUsd: 20, annualUsd: 200, detail: "Standard: $20 monthly or $200 annually" },
@@ -102,19 +106,26 @@ function SegmentedControl<T extends string>({
 export function CostCalculator() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("annual")
   const [pricingTier, setPricingTier] = useState<PricingTier>("ngo")
+  const [servicePlans, setServicePlans] = useState<Record<"vercel" | "supabase", ServicePlan>>({
+    vercel: "free",
+    supabase: "pro",
+  })
   const [enabledServices, setEnabledServices] = useState({
-    vercel: false,
-    supabase: true,
     ai: true,
   })
   const [aiProvider, setAiProvider] = useState<AiProvider>("claude")
+  const [exchangeRate, setExchangeRate] = useState(96)
 
   const periodLabel = billingCycle === "annual" ? "year" : "month"
   const services = useMemo(() => {
     const fixed = FIXED_SERVICES.map((service) => ({
       ...service,
-      enabled: enabledServices[service.id],
-      costUsd: billingCycle === "annual" ? service.annualUsd : service.monthlyUsd,
+      plan: servicePlans[service.id],
+      enabled: true,
+      costUsd:
+        billingCycle === "annual"
+          ? service.prices[servicePlans[service.id]].annualUsd
+          : service.prices[servicePlans[service.id]].monthlyUsd,
     }))
     const aiPrice = AI_PRICING[aiProvider][pricingTier]
 
@@ -129,13 +140,17 @@ export function CostCalculator() {
         costUsd: billingCycle === "annual" ? aiPrice.annualUsd : aiPrice.monthlyUsd,
       },
     ]
-  }, [aiProvider, billingCycle, enabledServices, pricingTier])
+  }, [aiProvider, billingCycle, enabledServices, pricingTier, servicePlans])
 
   const totalUsd = services.reduce((total, service) => total + (service.enabled ? service.costUsd : 0), 0)
   const monthlyEquivalentUsd = billingCycle === "annual" ? totalUsd / 12 : totalUsd
 
-  function setServiceEnabled(service: "vercel" | "supabase" | "ai", checked: boolean) {
+  function setServiceEnabled(service: "ai", checked: boolean) {
     setEnabledServices((current) => ({ ...current, [service]: checked }))
+  }
+
+  function setServicePlan(service: "vercel" | "supabase", plan: ServicePlan) {
+    setServicePlans((current) => ({ ...current, [service]: plan }))
   }
 
   return (
@@ -183,10 +198,10 @@ export function CostCalculator() {
             <CardContent className="grid divide-y divide-border">
               {FIXED_SERVICES.map((service) => {
                 const Icon = service.icon
-                const enabled = enabledServices[service.id]
-                const cost = billingCycle === "annual" ? service.annualUsd : service.monthlyUsd
+                const plan = servicePlans[service.id]
+                const cost = billingCycle === "annual" ? service.prices[plan].annualUsd : service.prices[plan].monthlyUsd
                 return (
-                  <label key={service.id} className="flex cursor-pointer items-center gap-4 py-5 first:pt-0">
+                  <div key={service.id} className="flex flex-col gap-4 py-5 first:pt-0 sm:flex-row sm:items-center">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-gk-blue-deep">
                       <Icon className="size-5" aria-hidden="true" />
                     </span>
@@ -194,15 +209,19 @@ export function CostCalculator() {
                       <span className="block font-medium">{service.name}</span>
                       <span className="block text-sm text-muted-foreground">{service.description}</span>
                     </span>
-                    <span className="hidden text-right text-sm text-muted-foreground sm:block">
-                      {formatUsd(cost)}/{periodLabel}
-                    </span>
-                    <Switch
-                      checked={enabled}
-                      onCheckedChange={(checked) => setServiceEnabled(service.id, checked)}
-                      aria-label={`Include ${service.name}`}
-                    />
-                  </label>
+                    <div className="flex items-center justify-between gap-4 sm:ml-auto">
+                      <span className="text-right text-sm text-muted-foreground">{formatUsd(cost)}/{periodLabel}</span>
+                      <SegmentedControl
+                        label={`${service.name} plan`}
+                        value={plan}
+                        onChange={(nextPlan) => setServicePlan(service.id, nextPlan)}
+                        options={[
+                          { value: "free", label: "Free" },
+                          { value: "pro", label: "Pro" },
+                        ]}
+                      />
+                    </div>
+                  </div>
                 )
               })}
 
@@ -260,12 +279,12 @@ export function CostCalculator() {
           </CardHeader>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Total per {periodLabel}</p>
-            <p className="mt-1 font-display text-4xl text-foreground">{formatInr(totalUsd * INR_PER_USD)}</p>
+            <p className="mt-1 font-display text-4xl text-foreground">{formatInr(totalUsd * exchangeRate)}</p>
             <p className="mt-1 text-sm text-muted-foreground">{formatUsd(totalUsd)} USD</p>
 
             {billingCycle === "annual" && (
               <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-                Equivalent to {formatInr(monthlyEquivalentUsd * INR_PER_USD)}/month
+                Equivalent to {formatInr(monthlyEquivalentUsd * exchangeRate)}/month
               </p>
             )}
 
@@ -273,10 +292,10 @@ export function CostCalculator() {
               {services.map((service) => (
                 <div key={service.id} className="flex items-start justify-between gap-4">
                   <span className={cn("text-muted-foreground", !service.enabled && "line-through opacity-60")}>
-                    {service.name}
+                    {"plan" in service ? `${service.name} ${service.plan === "pro" ? "Pro" : "Free"}` : service.name}
                   </span>
                   <span className="shrink-0 font-medium">
-                    {service.enabled ? formatInr(service.costUsd * INR_PER_USD) : "Not included"}
+                    {service.enabled ? formatInr(service.costUsd * exchangeRate) : "Not included"}
                   </span>
                 </div>
               ))}
@@ -285,9 +304,22 @@ export function CostCalculator() {
         </Card>
       </div>
 
-      <p className="mt-8 max-w-3xl text-sm leading-6 text-muted-foreground">
-        Estimates use ₹96 per USD and one seat or organisation for each included service. Vercel and Supabase annual prices are calculated as 12 monthly payments; AI pricing follows the supplied standard and nonprofit assumptions.
-      </p>
+      <div className="mt-8 flex max-w-3xl flex-col gap-4 border-t pt-6 sm:flex-row sm:items-end sm:justify-between">
+        <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+          Vercel and Supabase annual prices are calculated as 12 monthly payments. ChatGPT Business requires at least two paid seats, including nonprofit Standard seats.
+        </p>
+        <label className="grid w-full max-w-48 gap-1.5 text-sm font-medium">
+          1 USD equals (₹)
+          <Input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={exchangeRate}
+            onChange={(event) => setExchangeRate(Math.max(0, Number(event.target.value)))}
+            aria-label="Indian rupees per United States dollar"
+          />
+        </label>
+      </div>
     </main>
   )
 }
