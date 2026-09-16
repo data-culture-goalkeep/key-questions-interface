@@ -46,8 +46,8 @@ const AI_PRICING: Record<
     ngo: { monthlyUsd: 20, annualUsd: 192, detail: "2 nonprofit Business Standard seats (required minimum)" },
   },
   claude: {
-    standard: { monthlyUsd: 20, annualUsd: 200, detail: "Standard: $20 monthly or $200 annually" },
-    ngo: { monthlyUsd: 15, annualUsd: 180, detail: "2 nonprofit Team seats at $7.50/user/month (required minimum)" },
+    standard: { monthlyUsd: 50, annualUsd: 480, detail: "2 Team Standard seats (required minimum)" },
+    ngo: { monthlyUsd: 12.5, annualUsd: 120, detail: "Estimated: 2 nonprofit Team seats at 75% off the listed rate" },
   },
 }
 
@@ -70,6 +70,11 @@ function formatUsd(value: number) {
     currency: "USD",
     maximumFractionDigits: value % 1 === 0 ? 0 : 2,
   }).format(value)
+}
+
+function annualSavingsPercent(monthlyUsd: number, annualUsd: number) {
+  if (monthlyUsd === 0) return 0
+  return Math.round(((monthlyUsd * 12 - annualUsd) / (monthlyUsd * 12)) * 100)
 }
 
 function SegmentedControl<T extends string>({
@@ -127,6 +132,8 @@ export function CostCalculator() {
       ...service,
       plan: servicePlans[service.id],
       enabled: true,
+      monthlyUsd: service.prices[servicePlans[service.id]].monthlyUsd,
+      annualUsd: service.prices[servicePlans[service.id]].annualUsd,
       costUsd:
         billingCycle === "annual"
           ? service.prices[servicePlans[service.id]].annualUsd
@@ -142,6 +149,8 @@ export function CostCalculator() {
         description: aiPrice.detail,
         icon: Sparkles,
         enabled: enabledServices.ai,
+        monthlyUsd: aiPrice.monthlyUsd,
+        annualUsd: aiPrice.annualUsd,
         costUsd: billingCycle === "annual" ? aiPrice.annualUsd : aiPrice.monthlyUsd,
       },
     ]
@@ -205,6 +214,7 @@ export function CostCalculator() {
                 const Icon = service.icon
                 const plan = servicePlans[service.id]
                 const cost = billingCycle === "annual" ? service.prices[plan].annualUsd : service.prices[plan].monthlyUsd
+                const savings = annualSavingsPercent(service.prices[plan].monthlyUsd, service.prices[plan].annualUsd)
                 return (
                   <div key={service.id} className="flex flex-col gap-4 py-5 first:pt-0 sm:flex-row sm:items-center">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-gk-blue-deep">
@@ -215,7 +225,12 @@ export function CostCalculator() {
                       <span className="block text-sm text-muted-foreground">{service.description}</span>
                     </span>
                     <div className="flex items-center justify-between gap-4 sm:ml-auto">
-                      <span className="text-right text-sm text-muted-foreground">{formatUsd(cost)}/{periodLabel}</span>
+                      <span className="text-right text-sm text-muted-foreground">
+                        <span className="block">{formatUsd(cost)}/{periodLabel}</span>
+                        {billingCycle === "annual" && plan === "pro" && (
+                          <span className="block text-xs text-gk-blue-deep">{savings > 0 ? `Save ${savings}% annually` : "No annual saving"}</span>
+                        )}
+                      </span>
                       <SegmentedControl
                         label={`${service.name} plan`}
                         value={plan}
@@ -250,6 +265,7 @@ export function CostCalculator() {
                     const selected = aiProvider === provider
                     const price = AI_PRICING[provider][pricingTier]
                     const providerCost = billingCycle === "annual" ? price.annualUsd : price.monthlyUsd
+                    const savings = annualSavingsPercent(price.monthlyUsd, price.annualUsd)
                     return (
                       <button
                         key={provider}
@@ -268,7 +284,10 @@ export function CostCalculator() {
                           </span>
                           {provider === "claude" ? "Claude" : "ChatGPT"}
                         </span>
-                        <span className="text-sm text-muted-foreground">{formatUsd(providerCost)}</span>
+                        <span className="text-right text-sm text-muted-foreground">
+                          <span className="block">{formatUsd(providerCost)}</span>
+                          {billingCycle === "annual" && <span className="block text-xs text-gk-blue-deep">Save {savings}%</span>}
+                        </span>
                       </button>
                     )
                   })}
@@ -277,7 +296,7 @@ export function CostCalculator() {
                   <div className="mt-4 rounded-lg border border-gk-blue-deep/20 bg-gk-blue-deep/5 p-3 text-sm leading-6 text-muted-foreground">
                     {aiProvider === "claude" ? (
                       <>
-                        Claude nonprofit pricing is available through a Team account, so this estimate includes the required two seats. {" "}
+                        Claude nonprofit pricing is available through a Team account, so this estimate includes the required two seats. Its nonprofit page does not publish a fixed rate; this estimate applies a 75% discount to the listed monthly and annual Team prices. {" "}
                         <a
                           href={NONPROFIT_RESOURCES.claude}
                           target="_blank"
@@ -329,7 +348,18 @@ export function CostCalculator() {
                     {"plan" in service ? `${service.name} ${service.plan === "pro" ? "Pro" : "Free"}` : service.name}
                   </span>
                   <span className="shrink-0 font-medium">
-                    {service.enabled ? formatInr(service.costUsd * exchangeRate) : "Not included"}
+                    {service.enabled ? (
+                      <span className="block text-right">
+                        <span className="block">{formatInr(service.costUsd * exchangeRate)}</span>
+                        {billingCycle === "annual" && service.monthlyUsd > 0 && (
+                          <span className="block text-xs font-normal text-gk-blue-deep">
+                            {annualSavingsPercent(service.monthlyUsd, service.annualUsd) > 0
+                              ? `Save ${annualSavingsPercent(service.monthlyUsd, service.annualUsd)}% annually`
+                              : "No annual saving"}
+                          </span>
+                        )}
+                      </span>
+                    ) : "Not included"}
                   </span>
                 </div>
               ))}
