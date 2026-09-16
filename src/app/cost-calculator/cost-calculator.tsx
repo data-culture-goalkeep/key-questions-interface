@@ -42,11 +42,11 @@ const AI_PRICING: Record<
   Record<PricingTier, { monthlyUsd: number; annualUsd: number; detail: string }>
 > = {
   chatgpt: {
-    standard: { monthlyUsd: 50, annualUsd: 480, detail: "2 Business Standard seats (required minimum)" },
+    standard: { monthlyUsd: 25, annualUsd: 240, detail: "1 Business Standard seat" },
     ngo: { monthlyUsd: 20, annualUsd: 192, detail: "2 nonprofit Business Standard seats (required minimum)" },
   },
   claude: {
-    standard: { monthlyUsd: 50, annualUsd: 480, detail: "2 Team Standard seats (required minimum)" },
+    standard: { monthlyUsd: 25, annualUsd: 240, detail: "1 Team Standard seat" },
     ngo: { monthlyUsd: 12.5, annualUsd: 120, detail: "Estimated: 2 nonprofit Team seats at 75% off the listed rate" },
   },
 }
