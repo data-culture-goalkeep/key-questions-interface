@@ -266,6 +266,7 @@ export function CostCalculator() {
                     const price = AI_PRICING[provider][pricingTier]
                     const providerCost = billingCycle === "annual" ? price.annualUsd : price.monthlyUsd
                     const savings = annualSavingsPercent(price.monthlyUsd, price.annualUsd)
+                    const seatCount = pricingTier === "ngo" ? "2 seats" : "1 seat"
                     return (
                       <button
                         key={provider}
@@ -278,11 +279,14 @@ export function CostCalculator() {
                           selected ? "border-gk-blue-deep bg-gk-blue-deep/5" : "border-border hover:bg-muted/50"
                         )}
                       >
-                        <span className="flex items-center gap-2 font-medium">
+                        <span className="flex items-center gap-2">
                           <span className={cn("flex size-5 items-center justify-center rounded-full border", selected && "border-gk-blue-deep bg-gk-blue-deep text-white")}>
                             {selected && <Check className="size-3" aria-hidden="true" />}
                           </span>
-                          {provider === "claude" ? "Claude" : "ChatGPT"}
+                          <span>
+                            <span className="block font-medium">{provider === "claude" ? "Claude" : "ChatGPT"}</span>
+                            <span className="block text-xs text-muted-foreground">{seatCount}</span>
+                          </span>
                         </span>
                         <span className="text-right text-sm text-muted-foreground">
                           <span className="block">{formatUsd(providerCost)}</span>
