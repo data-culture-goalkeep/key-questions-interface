@@ -61,6 +61,11 @@ const SERVICE_TOOLTIPS = {
   supabase: "Provides the backend: a Postgres database, authentication, and secure data access for the app.",
 } as const
 
+const SERVICE_PRICING_URLS = {
+  vercel: "https://vercel.com/pricing",
+  supabase: "https://supabase.com/pricing",
+} as const
+
 function formatInr(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -228,6 +233,15 @@ export function CostCalculator() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5 font-medium">
                         {service.name}
+                        <a
+                          href={SERVICE_PRICING_URLS[service.id]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          aria-label={`${service.name} pricing (opens in a new tab)`}
+                        >
+                          <ExternalLink className="size-3.5" aria-hidden="true" />
+                        </a>
                         <span className="group relative inline-flex">
                           <button
                             type="button"
