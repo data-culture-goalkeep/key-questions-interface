@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, ExternalLink, Landmark, Server, Sparkles } from "lucide-react"
+import { Check, CircleHelp, ExternalLink, Landmark, Server, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,6 +54,16 @@ const AI_PRICING: Record<
 const NONPROFIT_RESOURCES = {
   claude: "https://claude.com/solutions/nonprofits#pricing",
   chatgpt: "https://help.openai.com/en/articles/9359041-openai-for-nonprofits#what-is-openai-for-nonprofits",
+} as const
+
+const SERVICE_TOOLTIPS = {
+  vercel: "Hosts and deploys the Next.js frontend—the web app your team and users open in a browser.",
+  supabase: "Provides the backend: a Postgres database, authentication, and secure data access for the app.",
+} as const
+
+const SERVICE_PRICING_URLS = {
+  vercel: "https://vercel.com/pricing",
+  supabase: "https://supabase.com/pricing",
 } as const
 
 function formatInr(value: number) {
@@ -221,7 +231,33 @@ export function CostCalculator() {
                       <Icon className="size-5" aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{service.name}</span>
+                      <span className="flex items-center gap-1.5 font-medium">
+                        {service.name}
+                        <a
+                          href={SERVICE_PRICING_URLS[service.id]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          aria-label={`${service.name} pricing (opens in a new tab)`}
+                        >
+                          <ExternalLink className="size-3.5" aria-hidden="true" />
+                        </a>
+                        <span className="group relative inline-flex">
+                          <button
+                            type="button"
+                            className="inline-flex rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            aria-label={`Why ${service.name} is included`}
+                          >
+                            <CircleHelp className="size-4" aria-hidden="true" />
+                          </button>
+                          <span
+                            role="tooltip"
+                            className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-64 -translate-x-1/2 rounded-md bg-foreground px-3 py-2 text-xs font-normal leading-5 text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                          >
+                            {SERVICE_TOOLTIPS[service.id]}
+                          </span>
+                        </span>
+                      </span>
                       <span className="block text-sm text-muted-foreground">{service.description}</span>
                     </span>
                     <div className="flex items-center justify-between gap-4 sm:ml-auto">
@@ -251,13 +287,13 @@ export function CostCalculator() {
                     <Sparkles className="size-5" aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-medium">AI client seat</span>
-                    <span className="block text-sm text-muted-foreground">AI access for incremental client changes</span>
+                    <span className="block font-medium">AI Platform Subscription</span>
+                    <span className="block text-sm text-muted-foreground">For NGO to make changes post handover</span>
                   </span>
                   <Switch
                     checked={enabledServices.ai}
                     onCheckedChange={(checked) => setServiceEnabled("ai", checked)}
-                    aria-label="Include an AI client seat"
+                    aria-label="Include an AI Platform Subscription"
                   />
                 </div>
                 <div className={cn("mt-4 grid gap-2 sm:grid-cols-2", !enabledServices.ai && "opacity-50")}>
