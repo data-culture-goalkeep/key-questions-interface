@@ -1378,17 +1378,17 @@ class ViewBuilder {
             ],
             sub: "Latest " + (ext ? "evaluation round" : "spot-assessment round"),
           }),
-          this.score(N + ".2", "English at Dakshata+", A(ext ? 54 : 57) + "%", {
+          this.score(N + ".2", "English at FLN+", A(ext ? 54 : 57) + "%", {
             kq: "KQ23",
-            sub: "Dakshata and above",
+            sub: "FLN and above",
           }),
-          this.score(N + ".3", "Hindi at Dakshata+", A(ext ? 58 : 61) + "%", {
+          this.score(N + ".3", "Hindi at FLN+", A(ext ? 58 : 61) + "%", {
             kq: "KQ23",
-            sub: "Dakshata and above",
+            sub: "FLN and above",
           }),
-          this.score(N + ".4", "Mathematics at Dakshata+", A(ext ? 46 : 49) + "%", {
+          this.score(N + ".4", "Mathematics at FLN+", A(ext ? 46 : 49) + "%", {
             kq: "KQ23",
-            sub: "Dakshata and above",
+            sub: "FLN and above",
           }),
         ],
       },
@@ -1532,9 +1532,9 @@ class ViewBuilder {
             [
               { label: "Schools" },
               { label: "Teacher practice" },
-              pct("English Dakshata+"),
-              pct("Hindi Dakshata+"),
-              pct("Maths Dakshata+"),
+              pct("English FLN+"),
+              pct("Hindi FLN+"),
+              pct("Maths FLN+"),
             ],
             // Schools column is the practice tier's count from the "b" table
             // (same tier order), scaled down by the band's assessed ratio —
@@ -1771,7 +1771,7 @@ const PAP: PapProcess[] = [
         num: "4.7",
         name: "Monthly assessment coverage",
         value: 76,
-        sub: "Monthly assessments included Dakshata, Dakshata++, n-1 and Grade Level questions across all middle grades and all three subjects",
+        sub: "Monthly assessments included FLN, Below Grade Level, n-1 and Grade Level questions across all middle grades and all three subjects",
       },
     ],
     tableNum: "4.8",

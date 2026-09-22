@@ -61,7 +61,7 @@ export const KEY_QUESTIONS: Record<string, KeyQuestion> = {
   },
   KQ11: {
     question:
-      "What proportion of schools conduct and analyse monthly assessments to understand Dakshata and other learning levels?",
+      "What proportion of schools conduct and analyse monthly assessments to understand FLN and other learning levels?",
     action:
       "Coaching for low-performing schools · provide question banks · recognise strong schools",
   },
