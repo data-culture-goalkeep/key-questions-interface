@@ -108,7 +108,7 @@ export const KEY_QUESTIONS: Record<string, KeyQuestion> = {
   },
   KQ23: {
     question:
-      "What is the distribution of students across below Dakshata, Dakshata, Dakshata++, n-1 and Grade Level in internal and external assessments?",
+      "What is the distribution of students across below FLN, FLN, Below Grade Level, n-1 and Grade Level in internal and external assessments?",
     action:
       "Share strategies with teachers · re-think effort distribution across levels · show data to SLs, government and funders",
   },
