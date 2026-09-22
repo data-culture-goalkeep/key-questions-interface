@@ -125,7 +125,7 @@ function districtOffset(district: string): number {
 
 /**
  * Adjust a rate metric (%) for the active scenario + Year / Division / District.
- * `reverse` metrics ("None met", "Below Dakshata") take the opposite sign so
+ * `reverse` metrics ("None met", "Below FLN") take the opposite sign so
  * "worse" always trends down. Result is clamped to [1, 99].
  */
 export function adjustRate(
