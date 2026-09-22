@@ -1307,15 +1307,17 @@ class ViewBuilder {
           this.pct(
             s.slice(0, 3) +
               " · " +
-              (l === "Below Dakshata"
+              (l === "Below FLN"
                 ? "Below"
-                : l === "Grade Level"
-                  ? "Grade"
-                  : l),
-            // A high share of students Below Dakshata is the bad outcome —
+                : l === "Below Grade Level"
+                  ? "Below Grade"
+                  : l === "Grade Level"
+                    ? "Grade"
+                    : l),
+            // A high share of students Below FLN is the bad outcome —
             // reverse so the ≥70%/<30% rule points the right way (previously
             // hardcoded false, a pre-existing bug).
-            l === "Below Dakshata",
+            l === "Below FLN",
           ),
         ),
       ),
@@ -1434,7 +1436,7 @@ class ViewBuilder {
               kq: "KQ23",
               minWidth: "1260px",
               legend:
-                "Green ≥70%, red <30% (reversed for Below Dakshata) —",
+                "Green ≥70%, red <30% (reversed for Below FLN) —",
             },
           ),
         ],
@@ -1459,7 +1461,7 @@ class ViewBuilder {
               kq: "KQ23",
               minWidth: "1260px",
               legend:
-                "Green ≥70%, red <30% (reversed for Below Dakshata) —",
+                "Green ≥70%, red <30% (reversed for Below FLN) —",
               rowsReserve: DISTRICTS.length,
             },
           ),

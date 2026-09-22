@@ -22,7 +22,7 @@ export const COLOR = {
   surface: "#FFFFFF",
 } as const
 
-// Learning-level ramp: Below Dakshata → Dakshata → Dakshata++ → Grade Level
+// Learning-level ramp: Below FLN → FLN → Below Grade Level → Grade Level
 export const LEVEL_RAMP = [
   COLOR.coral,
   COLOR.yellow,
@@ -31,9 +31,9 @@ export const LEVEL_RAMP = [
 ] as const
 
 export const LEVELS = [
-  "Below Dakshata",
-  "Dakshata",
-  "Dakshata++",
+  "Below FLN",
+  "FLN",
+  "Below Grade Level",
   "Grade Level",
 ] as const
 
